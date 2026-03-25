@@ -298,17 +298,14 @@ function renderSite() {
     </section>
     <section class="section" id="mini-audit">
       <div class="container">
-        <div class="audit-layout">
-          <div class="section-copy reveal">
-            <p class="section-kicker">Mini Audit</p>
-            <h2>Get a fast read on where your life stands.</h2>
-            <p>Answer five quick questions. Each answer carries a score. At the end, you will get a simple result and a clear path into the full audit.</p>
-          </div>
-          <div class="audit-shell reveal">
-            <form class="audit-form" id="mini-audit-form">
-              ${miniAuditQuestions.map((item, index) => `<fieldset class="audit-question"><legend><span class="question-index">0${index + 1}</span><span>${item[2]}</span></legend><div class="audit-options">${item[3].map(([label, score]) => `<label class="audit-option"><input type="radio" name="${item[0]}" value="${score}" /><span>${label}</span></label>`).join("")}</div></fieldset>`).join("")}
-              <div class="audit-actions"><button class="button button-primary" type="submit">See my result</button></div>
-            </form>
+        <div class="mini-audit-intro reveal">
+          <p class="section-kicker">Mini Audit</p>
+          <h2>Get a fast read on where you're at.</h2>
+          <p>Try a quick version of the Life Audit. Five questions, one at a time, and a simple read on where life feels steady or strained.</p>
+        </div>
+        <div class="mini-audit-wrap reveal">
+          <div class="audit-shell mini-audit-shell">
+            <div id="mini-audit-flow"></div>
             <div class="audit-result" id="mini-audit-result" hidden>
               <p class="section-kicker">Your result</p>
               <div class="audit-score" id="mini-audit-score">0/100</div>
@@ -404,7 +401,7 @@ if ("IntersectionObserver" in window) {
   document.querySelectorAll(".reveal").forEach((node) => node.classList.add("is-visible"));
 }
 
-const miniAuditForm = document.querySelector("#mini-audit-form");
+const miniAuditFlow = document.querySelector("#mini-audit-flow");
 const miniAuditResult = document.querySelector("#mini-audit-result");
 const miniAuditScore = document.querySelector("#mini-audit-score");
 const miniAuditTitle = document.querySelector("#mini-audit-title");
@@ -431,34 +428,114 @@ const frictionCopyByArea = {
   Direction: "Part of the friction appears to be misalignment between how you are living and what you actually want to respect.",
 };
 
-if (miniAuditForm && miniAuditResult) {
-  miniAuditForm.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const formData = new FormData(miniAuditForm);
-    const answers = miniAuditQuestions.map((question) => Number(formData.get(question[0])));
-    if (answers.some((value) => Number.isNaN(value) || value === 0)) {
-      miniAuditTitle.textContent = "Complete all 5 questions";
-      miniAuditMessage.textContent = "Choose one answer for each question so the audit can calculate your score.";
-      miniAuditScore.textContent = "--/100";
-      miniAuditStrongest.textContent = "--";
-      miniAuditWeakest.textContent = "--";
-      miniAuditFriction.textContent = "The audit needs all five answers before it can point to the main source of drag.";
-      miniAuditResult.hidden = false;
+const miniAuditState = {
+  index: 0,
+  answers: {},
+};
+
+function completeMiniAudit() {
+  const answers = miniAuditQuestions.map((question) => Number(miniAuditState.answers[question[0]]));
+  if (answers.some((value) => Number.isNaN(value) || value === 0)) {
+    miniAuditFlow.hidden = true;
+    miniAuditTitle.textContent = "Complete all 5 questions";
+    miniAuditMessage.textContent = "Choose one answer for each question so the audit can calculate your score.";
+    miniAuditScore.textContent = "--/100";
+    miniAuditStrongest.textContent = "--";
+    miniAuditWeakest.textContent = "--";
+    miniAuditFriction.textContent = "The audit needs all five answers before it can point to the main source of drag.";
+    miniAuditResult.hidden = false;
+    return;
+  }
+
+  const totalScore = answers.reduce((sum, value) => sum + value, 0);
+  const scoreOutOf100 = totalScore * 4;
+  const band = resultBands.find((item) => scoreOutOf100 <= item.max) ?? resultBands[resultBands.length - 1];
+  const scoredAreas = miniAuditQuestions.map((question, index) => ({ area: question[1], score: answers[index] }));
+  const strongest = [...scoredAreas].sort((a, b) => b.score - a.score)[0];
+  const weakest = [...scoredAreas].sort((a, b) => a.score - b.score)[0];
+
+  miniAuditScore.textContent = `${scoreOutOf100}/100`;
+  miniAuditTitle.textContent = band.title;
+  miniAuditMessage.textContent = band.message;
+  miniAuditStrongest.textContent = `${strongest.area} (${strongest.score}/5)`;
+  miniAuditWeakest.textContent = `${weakest.area} (${weakest.score}/5)`;
+  miniAuditFriction.textContent = frictionCopyByArea[weakest.area] ?? "A weaker area is likely creating more background drag than it first appears.";
+  miniAuditFlow.hidden = true;
+  miniAuditResult.hidden = false;
+}
+
+function renderMiniAudit() {
+  if (!miniAuditFlow) return;
+  miniAuditFlow.hidden = false;
+  const item = miniAuditQuestions[miniAuditState.index];
+  const selected = miniAuditState.answers[item[0]];
+  const isLast = miniAuditState.index === miniAuditQuestions.length - 1;
+
+  miniAuditFlow.innerHTML = `
+    <div class="mini-audit-card">
+      <div class="mini-audit-head">
+        <div>
+          <p class="mini-audit-kicker">Quick try</p>
+          <h3>${h(item[2])}</h3>
+        </div>
+        <div class="mini-audit-progresscopy">
+          <strong>${miniAuditState.index + 1} / ${miniAuditQuestions.length}</strong>
+          <span>Fast read</span>
+        </div>
+      </div>
+      <div class="mini-audit-progress"><span style="width:${((miniAuditState.index + 1) / miniAuditQuestions.length) * 100}%"></span></div>
+      <div class="audit-options mini-audit-options">
+        ${item[3].map(([label, score]) => `
+          <button class="mini-audit-option ${selected === score ? "is-selected" : ""}" type="button" data-mini-score="${score}">
+            <span>${h(label)}</span>
+          </button>
+        `).join("")}
+      </div>
+      <div class="mini-audit-footer">
+        <button class="button button-secondary" type="button" data-mini-back ${miniAuditState.index === 0 ? "disabled" : ""}>Back</button>
+        <button class="button button-primary" type="button" data-mini-next ${selected ? "" : "disabled"}>${isLast ? "See my result" : "Next"}</button>
+      </div>
+    </div>
+  `;
+}
+
+if (miniAuditFlow && miniAuditResult) {
+  renderMiniAudit();
+
+  miniAuditFlow.addEventListener("click", (event) => {
+    const optionButton = event.target.closest("[data-mini-score]");
+    if (optionButton) {
+      const item = miniAuditQuestions[miniAuditState.index];
+      miniAuditState.answers[item[0]] = Number(optionButton.dataset.miniScore);
+      miniAuditFlow.hidden = false;
+      miniAuditResult.hidden = true;
+      renderMiniAudit();
       return;
     }
-    const totalScore = answers.reduce((sum, value) => sum + value, 0);
-    const scoreOutOf100 = totalScore * 4;
-    const band = resultBands.find((item) => scoreOutOf100 <= item.max) ?? resultBands[resultBands.length - 1];
-    const scoredAreas = miniAuditQuestions.map((question, index) => ({ area: question[1], score: answers[index] }));
-    const strongest = [...scoredAreas].sort((a, b) => b.score - a.score)[0];
-    const weakest = [...scoredAreas].sort((a, b) => a.score - b.score)[0];
-    miniAuditScore.textContent = `${scoreOutOf100}/100`;
-    miniAuditTitle.textContent = band.title;
-    miniAuditMessage.textContent = band.message;
-    miniAuditStrongest.textContent = `${strongest.area} (${strongest.score}/5)`;
-    miniAuditWeakest.textContent = `${weakest.area} (${weakest.score}/5)`;
-    miniAuditFriction.textContent = frictionCopyByArea[weakest.area] ?? "A weaker area is likely creating more background drag than it first appears.";
-    miniAuditResult.hidden = false;
+
+    const backButton = event.target.closest("[data-mini-back]");
+    if (backButton && miniAuditState.index > 0) {
+      miniAuditState.index -= 1;
+      miniAuditFlow.hidden = false;
+      miniAuditResult.hidden = true;
+      renderMiniAudit();
+      return;
+    }
+
+    const nextButton = event.target.closest("[data-mini-next]");
+    if (!nextButton) return;
+    const current = miniAuditQuestions[miniAuditState.index];
+    if (!miniAuditState.answers[current[0]]) return;
+
+    if (miniAuditState.index === miniAuditQuestions.length - 1) {
+      completeMiniAudit();
+      return;
+    }
+
+    miniAuditState.index += 1;
+    miniAuditFlow.hidden = false;
+    miniAuditResult.hidden = true;
+    renderMiniAudit();
   });
 }
 
