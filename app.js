@@ -1,7 +1,7 @@
 const app = document.querySelector("#app");
 
 const features = [
-  ["Get your Life Score", "Start with a short free audit that gives people a fast read on where life feels strong, weak, or drifting."],
+  ["Get your Life Score", "Start with a short free trial audit that gives people an initial insight into where life feels strong, weak, or drifting."],
   ["See the real pattern", "Move beyond surface-level habits into identity, mental tabs, health, relationships, direction, and standards."],
   ["Leave with a plan", "Every result should end in diagnosis, priority fixes, and a practical 30-day reset instead of vague motivation."],
 ];
@@ -21,10 +21,11 @@ const categories = [
 ];
 
 const steps = [
-  { step: "01", title: "Try the free mini audit", body: "A quick but sharp entry point that gives users a score and enough insight to make the full audit feel worth it." },
-  { step: "02", title: "Unlock the full deep dive", body: "Guide users through identity, fear, mental bandwidth, relationships, online drift, purpose, and standards." },
-  { step: "03", title: "Get the breakdown", body: "Show category scores, recurring patterns, root issue, blind spots, and strongest areas in plain English." },
-  { step: "04", title: "Follow the reset plan", body: "Finish with direct next steps: what to start, stop, reduce, rebuild, and keep non-negotiable for 30 days." },
+  { step: "01", title: "Start with an initial audit", body: "Get a first layer of insight into where you are right now." },
+  { step: "02", title: "See your initial result", body: "Understand what's working and where things feel off." },
+  { step: "03", title: "Go deeper", body: "Work through each area of your life with guided questions." },
+  { step: "04", title: "Get your breakdown", body: "See your strengths, weak spots, and hidden friction." },
+  { step: "05", title: "Know what to do next", body: "Walk away with clear next steps and a simple plan." },
 ];
 
 const miniAuditQuestions = [
@@ -35,7 +36,51 @@ const miniAuditQuestions = [
   ["alignment", "Direction", "How aligned does your current life feel with the person you want to be?", [["Not aligned", 1], ["Far off", 2], ["Partially aligned", 3], ["Mostly aligned", 4], ["Deeply aligned", 5]]],
 ];
 
-function q(id, text, placeholder, prompt, why, example) {
+function inferQuestionMeta(sectionId, text) {
+  const normalized = String(text || "").toLowerCase().trim();
+  const isScale = /out of 10|from 1 to 10/.test(normalized) || normalized.startsWith("rate ");
+  if (isScale) {
+    return { inputType: "scale", minWords: 0, scaleMin: 1, scaleMax: 10 };
+  }
+
+  const isShort =
+    /one sentence/.test(normalized) ||
+    normalized.startsWith("what are your best qualities") ||
+    normalized.startsWith("what are your worst habits") ||
+    normalized.startsWith("what compliments do you receive") ||
+    normalized.startsWith("what criticisms do you receive") ||
+    normalized.startsWith("who do you fear") ||
+    normalized.startsWith("what fear used to control you") ||
+    normalized.startsWith("what helps calm you down") ||
+    normalized.startsWith("what thought patterns hurt you the most");
+
+  if (isShort) {
+    return { inputType: "short", minWords: 0 };
+  }
+
+  const deeperSections = new Set([
+    "identityCompression",
+    "theIdentityGap",
+    "fearMapping",
+    "anxietyTriggerAwareness",
+    "internalThreatAssessment",
+    "mentalTabsAudit",
+    "ambitionPurposePotential",
+    "valuesNonNegotiables",
+    "mirrorReportBrutalHonesty",
+    "patternRecognition",
+    "priorityRepairList",
+    "finalCommitment",
+  ]);
+
+  return {
+    inputType: "reflective",
+    minWords: deeperSections.has(sectionId) ? 18 : 14,
+  };
+}
+
+function q(id, text, placeholder, prompt, why, example, meta = {}) {
+  const inferred = inferQuestionMeta("", text);
   return {
     id,
     text,
@@ -43,6 +88,11 @@ function q(id, text, placeholder, prompt, why, example) {
     prompts: [prompt, "Write the first honest thing that comes to mind.", "Notice what you keep circling around."],
     why,
     example,
+    inputType: inferred.inputType,
+    minWords: inferred.minWords,
+    scaleMin: inferred.scaleMin,
+    scaleMax: inferred.scaleMax,
+    ...meta,
   };
 }
 
@@ -214,7 +264,8 @@ if (Array.isArray(window.LIFE_AUDIT_FULL_STEPS) && window.LIFE_AUDIT_FULL_STEPS.
         "Write plainly. Specific, honest answers are more useful than polished ones.",
         "Start with the first concrete example that comes to mind.",
         "This question is here to surface a pattern that will matter later in the diagnosis.",
-        "Answer in your own words. A few honest sentences are enough to begin."
+        "Answer in your own words. A few honest sentences are enough to begin.",
+        inferQuestionMeta(section.id, text)
       )
     ),
   }));
@@ -232,14 +283,19 @@ if (Array.isArray(window.LIFE_AUDIT_FULL_STEPS) && window.LIFE_AUDIT_FULL_STEPS.
 }
 
 const pricing = [
-  { name: "Free Mini Audit", price: "$0", subtitle: "Fast hook", items: ["Quick life score", "Short diagnostic snapshot", "One key friction point", "Strong CTA into full audit"], cta: "Start free", featured: false },
-  { name: "Full Life Audit", price: "$199", subtitle: "Main product", items: ["Full guided assessment", "Category scoring dashboard", "Root issue detection", "Priority fixes + 30-day reset"], cta: "Unlock full audit", featured: true },
+  { name: "Free Trial Audit", price: "$0", subtitle: "Opening insight", items: ["Initial life score", "First layer of insight", "Identify where things feel off"], cta: "Start free", featured: false },
+  { name: "Full Life Audit", price: "$199", subtitle: "Deeper clarity", items: ["Full breakdown across key areas", "Identify patterns and friction points", "Understand what is actually driving things", "Clear next steps and action plan"], cta: "Unlock Full Audit", featured: true, value: "One session. No ongoing coaching. Just clarity on what's actually going on and what to do next." },
 ];
 
 const faqs = [
-  { q: "Is this therapy?", a: "No. It is structured self-assessment. Direct, practical, and built to turn reflection into action." },
-  { q: "How long does the full audit take?", a: "The mini audit should feel fast. The full audit should feel deep, but cleanly guided so people keep moving." },
-  { q: "What do I get at the end?", a: "A score, category breakdown, core diagnosis, strengths, blind spots, likely root issue, priority fixes, and a 30-day reset plan." },
+  { q: "What is Life Audit?", a: "Life Audit is a structured self-assessment that helps you understand what is working, what is draining you, and what needs attention next. It is not coaching, therapy, or generic motivation." },
+  { q: "Who is this for?", a: "It is for business owners, high performers, people who feel stuck or unclear, and people who know something is off but cannot quite pinpoint it. If your life looks functional on the outside but feels uneven underneath, this is for you." },
+  { q: "Is my information private?", a: "Yes. Your responses are not shared, your data is not sold, and your answers remain confidential. The experience is designed to feel personal, contained, and safe to answer honestly." },
+  { q: "Is this therapy or professional advice?", a: "No. Life Audit is not medical, psychological, or professional advice. It is a self-guided reflection tool designed to help you think clearly and see patterns more accurately." },
+  { q: "What do I get at the end?", a: "You get a category breakdown, your strongest and weakest areas, key friction points, a likely root issue, and clear next steps so the result is useful, not vague." },
+  { q: "How long does it take?", a: "The free trial audit is designed as an initial insight. The full audit goes deeper and takes more time, but you can move through it at your own pace." },
+  { q: "Do I need to answer perfectly?", a: "No. Honesty matters more than perfection. Simple, direct answers are enough to make the audit useful." },
+  { q: "Is there a refund policy?", a: "All purchases are final and non-refundable due to the nature of the product as a completed digital experience." },
 ];
 
 const auditorPoints = [
@@ -251,6 +307,26 @@ const auditorPoints = [
 ];
 
 const tagItems = ["Identity", "Mental clarity", "Relationships", "Direction", "30-day reset"];
+const conceptSlides = [
+  {
+    id: "mental-tabs",
+    eyebrow: "Mental Tabs",
+    title: "What stays unresolved keeps running in the background.",
+    body: "Unfinished decisions, pressure, emotional friction, and half-closed loops do not disappear when ignored. They stay mentally open, quietly reducing clarity, energy, and clean attention.",
+  },
+  {
+    id: "identity",
+    eyebrow: "Identity",
+    title: "A lot of decisions still come from an old role.",
+    body: "Many people are still operating from an old self-image, old responsibility, or version of themselves they never properly examined. The full audit helps surface the identity that is still driving the system.",
+  },
+  {
+    id: "energy",
+    eyebrow: "Energy",
+    title: "Low energy affects more than just how you feel.",
+    body: "Poor sleep, chronic stress, and weak physical maintenance influence clarity, discipline, mood, and follow-through. What looks like a mindset issue is often partly an energy issue.",
+  },
+];
 
 function h(value) {
   return String(value ?? "")
@@ -270,28 +346,23 @@ function renderSite() {
         <header class="topbar reveal">
           <a class="brand" href="#top"><span class="brand-mark" aria-hidden="true"></span><span>LIFE AUDIT</span></a>
           <nav class="topbar-links" aria-label="Primary">
-            <a href="#mini-audit">Mini Audit</a>
-            <a href="#audit" data-start-full-audit="true">Full Audit</a>
+            <a href="#mini-audit">Free Trial Audit</a>
+            <a href="#audit" data-start-full-audit="true">Unlock Full Audit</a>
             <a href="#pricing">Pricing</a>
             <a href="#faq">FAQ</a>
           </nav>
         </header>
         <div class="hero-grid">
-          <div class="reveal">
-            <div class="eyebrow">Life Audit / clarity, diagnosis, action</div>
-            <h1>Stop guessing where your life is at.<span>Run the audit. See the pattern. Fix what matters.</span></h1>
-            <p class="hero-copy">A direct self-assessment for people who know something feels off, messy, underused, or misaligned and want an honest read on what to do next.</p>
+          <div class="hero-main reveal">
+            <div class="hero-typed" aria-label="Life Audit"><span>LIFE AUDIT</span></div>
+            <h1>You already know something's off. This shows you exactly what's going on, and what to do about it.</h1>
+            <p class="hero-subtext">A structured self-assessment that goes beneath the surface, revealing what is actually driving your decisions, patterns, and results.</p>
+            <p class="hero-support">So you can see clearly what is working, what is not, and what needs to change.</p>
             <div class="hero-actions">
-              <a class="button button-primary" href="#mini-audit">Start free mini audit</a>
-              <a class="button button-secondary" href="#audit" data-start-full-audit="true">Start Full Audit</a>
+              <a class="button button-primary" href="#mini-audit">Start your free trial audit</a>
+              <a class="button button-secondary" href="#audit" data-start-full-audit="true">Unlock Full Audit</a>
             </div>
             <div class="hero-tags">${tagItems.map((tag) => `<span class="pill">${tag}</span>`).join("")}</div>
-          </div>
-          <div class="hero-card-wrap reveal">
-            <div class="hero-card"><div class="inner-card">
-              <div class="card-head"><div><p class="label">Preview</p><h3>Your Life Score</h3></div><div class="completion"><p class="label">Completion</p><strong>34%</strong></div></div>
-              <div class="score-panel"><div class="score-line"><div><p class="label">Preliminary score</p><p class="score-value">61<span>/100</span></p></div><div class="score-pill">Friction Present</div></div><p>Based on your answers so far, your strongest area looks like self-awareness. Your weakest area looks like mental clarity. The bigger issue is not lack of potential. It is unresolved friction and inconsistent follow-through.</p></div>
-            </div></div>
           </div>
         </div>
       </div>
@@ -299,25 +370,30 @@ function renderSite() {
     <section class="section" id="mini-audit">
       <div class="container">
         <div class="mini-audit-intro reveal">
-          <p class="section-kicker">Mini Audit</p>
-          <h2>Get a fast read on where you're at.</h2>
-          <p>Try a quick version of the Life Audit. Five questions, one at a time, and a simple read on where life feels steady or strained.</p>
+          <p class="section-kicker">Free Trial Audit</p>
+          <h2>Get an initial insight into where you're at.</h2>
+          <p>Begin with the first layer of the Life Audit. Five questions, one at a time, and an opening diagnosis of where life feels steady or strained.</p>
         </div>
         <div class="mini-audit-wrap reveal">
           <div class="audit-shell mini-audit-shell">
             <div id="mini-audit-flow"></div>
             <div class="audit-result" id="mini-audit-result" hidden>
-              <p class="section-kicker">Your result</p>
+              <p class="section-kicker">Opening diagnosis</p>
+              <p class="mini-audit-personal" id="mini-audit-personal" hidden></p>
               <div class="audit-score" id="mini-audit-score">0/100</div>
               <h3 id="mini-audit-title">Stable but Stretched</h3>
               <p id="mini-audit-message">Some parts of life are still carrying you, but the pattern underneath suggests strain, split focus, and uneven follow-through.</p>
+              <div class="audit-insight">
+                <p class="audit-insight-label">Pattern insight</p>
+                <p id="mini-audit-pattern">The way you are carrying things may be shaping the result as much as the result itself.</p>
+              </div>
               <div class="audit-meta">
                 <div class="audit-meta-row"><span>Strongest area</span><strong id="mini-audit-strongest">Clarity</strong></div>
-                <div class="audit-meta-row"><span>Weakest area</span><strong id="mini-audit-weakest">Discipline</strong></div>
                 <div class="audit-meta-row"><span>Biggest friction point</span><strong id="mini-audit-friction">You can see the gap, but your execution is not fully supporting your priorities.</strong></div>
+                <div class="audit-meta-row"><span>Next step</span><strong id="mini-audit-next-step">Reduce one source of drag and make one cleaner decision.</strong></div>
               </div>
-              <div class="audit-upgrade"><p>The full Life Audit goes deeper into identity, health, relationships, discipline, clarity, direction, and hidden friction.</p></div>
-              <a class="button button-secondary" href="#audit" data-start-full-audit="true">Start Full Audit</a>
+              <div class="audit-upgrade"><p id="mini-audit-upgrade">The full Life Audit goes deeper into identity, health, relationships, discipline, clarity, direction, and hidden friction.</p></div>
+              <a class="button button-secondary" href="#audit" data-start-full-audit="true">Unlock Full Audit</a>
             </div>
           </div>
         </div>
@@ -325,61 +401,49 @@ function renderSite() {
     </section>
     <section class="section section-muted" id="mental-tabs">
       <div class="container">
-        <div class="mental-tabs-layout">
-          <div class="section-copy reveal">
-            <p class="section-kicker">Mental Tabs</p>
-            <h2>Most people are not only tired. They are running too many things in the background.</h2>
-            <p>
-              Unfinished decisions, unresolved conversations, low-grade pressure, and emotional friction do not disappear when ignored.
-              They stay mentally open. Over time, they reduce clarity, fragment attention, and make ordinary life feel heavier than it should.
-            </p>
+        <div class="mental-preview reveal">
+          <div class="mental-preview-intro">
+            <p class="section-kicker">Inside the Full Audit</p>
+            <h2>A preview of the deeper ideas the full audit explores.</h2>
+            <p>These are the kinds of hidden patterns the full Life Audit helps bring into focus beneath the surface.</p>
           </div>
-          <div class="mental-tabs-visual reveal" aria-hidden="true">
-            <div class="mental-tabs-frame">
-              <div class="mental-tabs-topbar">
-                <span></span><span></span><span></span>
+          <div class="mental-carousel" data-concept-carousel>
+            <div class="mental-carousel-viewport">
+              <div class="mental-carousel-track" id="concept-track">
+                ${conceptSlides.map((slide) => `
+                  <article class="mental-slide">
+                    <p class="mental-slide-kicker">${slide.eyebrow}</p>
+                    <h3>${slide.title}</h3>
+                    <p>${slide.body}</p>
+                  </article>
+                `).join("")}
               </div>
-              <div class="mental-tabs-stack">
-                <div class="mental-tab mental-tab-primary">
-                  <strong>Unfinished decision</strong>
-                  <p>Still running in the background</p>
-                </div>
-                <div class="mental-tab mental-tab-secondary">
-                  <strong>Unspoken conflict</strong>
-                  <p>Quietly pulling attention</p>
-                </div>
-                <div class="mental-tab mental-tab-tertiary">
-                  <strong>Pressure to perform</strong>
-                  <p>Draining clean thinking</p>
-                </div>
-                <div class="mental-tab mental-tab-muted">
-                  <strong>Direction uncertainty</strong>
-                  <p>Keeping the system noisy</p>
-                </div>
+            </div>
+            <div class="mental-carousel-controls">
+              <button class="mental-carousel-button" type="button" data-concept-prev aria-label="Previous concept">Previous</button>
+              <div class="mental-carousel-dots" aria-label="Concept slides">
+                ${conceptSlides.map((slide, index) => `<button class="mental-dot ${index === 0 ? "is-active" : ""}" type="button" data-concept-dot="${index}" aria-label="Go to ${slide.eyebrow}"></button>`).join("")}
               </div>
-              <div class="mental-tabs-core">
-                <div class="mental-tabs-ring"></div>
-                <div class="mental-tabs-ring mental-tabs-ring-delay"></div>
-                <div class="mental-tabs-center">
-                  <span>Clarity</span>
-                  <strong>Gets diluted</strong>
-                </div>
-              </div>
+              <button class="mental-carousel-button" type="button" data-concept-next aria-label="Next concept">Next</button>
             </div>
           </div>
         </div>
       </div>
     </section>
-    <section class="section" id="flow"><div class="container"><div class="section-heading reveal"><p class="section-kicker">How it flows</p><h2>Designed to hook fast, go deep, then turn into action.</h2></div><div class="step-grid">${steps.map((item) => `<article class="step-card reveal"><div class="step-num">${item.step}</div><h3>${item.title}</h3><p>${item.body}</p></article>`).join("")}</div></div></section>
-    <section class="section" id="pricing"><div class="container"><div class="section-heading reveal"><p class="section-kicker">Pricing</p><h2>Simple offer structure. Easy to understand.</h2></div><div class="pricing-grid">${pricing.map((tier) => `<article class="pricing-card reveal ${tier.featured ? "featured" : ""}"><div class="price-row"><div><p class="price-tagline">${tier.subtitle}</p><h3>${tier.name}</h3></div><div class="price-value">${tier.price}</div></div><div class="pricing-list">${tier.items.map((item) => `<div class="pricing-item">${item}</div>`).join("")}</div><a class="button ${tier.featured ? "" : "button-primary"}" href="${tier.featured ? "#audit" : "#mini-audit"}"${tier.featured ? ' data-start-full-audit="true"' : ""}>${tier.cta}</a></article>`).join("")}</div></div></section>
-    <section class="section section-muted" id="faq"><div class="container"><div class="faq-layout"><div class="faq-copy reveal"><p class="section-kicker">FAQ</p><h2>Questions people will ask before buying.</h2></div><div class="faq-list">${faqs.map((item) => `<article class="faq-item reveal"><h3>${item.q}</h3><p>${item.a}</p></article>`).join("")}</div></div></div></section>
-    <footer class="footer"><div class="container"><div class="footer-row reveal"><div class="brand"><span class="brand-mark" aria-hidden="true"></span><span>LIFE AUDIT</span></div><a class="footer-cta" href="#top">Back to top</a></div></div></footer>
+    <section class="section" id="flow"><div class="container"><div class="section-heading reveal"><p class="section-kicker">What happens</p><h2>A clear path from first insight to next steps.</h2><p>Move from an opening diagnosis of where life stands to a clearer understanding of what needs attention.</p></div><div class="journey-visual reveal"><div class="journey-track">${steps.map((item) => `<article class="journey-node"><span>${item.step}</span><strong>${item.title}</strong><p>${item.body}</p></article>`).join("")}</div><div class="journey-outcome"><p class="journey-label">End result</p><h3>Clarity on what is working, what is draining you, and what to do next.</h3><div class="journey-outcome-points"><span>Clearer direction</span><span>Visible friction points</span><span>A practical next step</span></div></div></div></div></section>
+    <section class="section" id="pricing"><div class="container"><div class="section-heading reveal"><p class="section-kicker">Pricing</p><h2>One clear step from surface-level answers to real clarity</h2><p>Start with an initial insight. If it resonates, go deeper.</p></div><div class="pricing-grid">${pricing.map((tier) => `<article class="pricing-card reveal ${tier.featured ? "featured" : ""}"><div class="price-row"><div><p class="price-tagline">${tier.subtitle}</p><h3>${tier.name}</h3></div><div class="price-value">${tier.price}</div></div><div class="pricing-list">${tier.items.map((item) => `<div class="pricing-item">${item}</div>`).join("")}</div>${tier.value ? `<p class="pricing-value">${tier.value}</p>` : ""}<a class="button ${tier.featured ? "" : "button-primary"}" href="${tier.featured ? "#audit" : "#mini-audit"}"${tier.featured ? ' data-start-full-audit="true"' : ""}>${tier.cta}</a></article>`).join("")}</div><p class="pricing-trust reveal">Built for people who want answers, not endless sessions.</p></div></section>
+    <section class="section section-muted" id="faq"><div class="container"><div class="faq-layout"><div class="faq-copy reveal"><p class="section-kicker">FAQ</p><h2>Questions you may have before you start.</h2><p>Everything you need to know before taking the audit.</p></div><div class="faq-list">${faqs.map((item, index) => `<details class="faq-item reveal" ${index === 0 ? "open" : ""}><summary><span>${item.q}</span><span class="faq-toggle" aria-hidden="true"></span></summary><div class="faq-answer"><p>${item.a}</p></div></details>`).join("")}</div></div></div></section>
+    <footer class="footer"><div class="container"><div class="footer-row reveal"><div class="brand"><span class="brand-mark" aria-hidden="true"></span><span>LIFE AUDIT</span></div><div class="footer-links"><a class="footer-link" href="./privacy.html">Privacy Policy</a><a class="footer-link" href="./terms.html">Terms &amp; Disclaimer</a><a class="footer-cta" href="#top">Back to top</a></div></div></div></footer>
   </div>
+  <div class="resume-overlay" id="full-audit-resume-overlay" hidden></div>
   <section class="audit-mode" id="full-audit-mode" hidden aria-label="Full Life Audit session">
     <div class="audit-mode-shell">
       <div class="audit-mode-bar">
         <span class="audit-mode-label">Full Life Audit</span>
-        <button class="audit-exit" type="button" data-action="exit-audit">Exit Full Audit</button>
+        <div class="audit-mode-actions">
+          <button class="audit-focus" type="button" data-action="toggle-focus-mode">Enter Focus Mode</button>
+          <button class="audit-exit" type="button" data-action="exit-audit">Exit Full Audit</button>
+        </div>
       </div>
       <div class="full-audit-stage" id="full-audit-app"></div>
     </div>
@@ -406,19 +470,17 @@ const miniAuditResult = document.querySelector("#mini-audit-result");
 const miniAuditScore = document.querySelector("#mini-audit-score");
 const miniAuditTitle = document.querySelector("#mini-audit-title");
 const miniAuditMessage = document.querySelector("#mini-audit-message");
+const miniAuditPattern = document.querySelector("#mini-audit-pattern");
 const miniAuditStrongest = document.querySelector("#mini-audit-strongest");
-const miniAuditWeakest = document.querySelector("#mini-audit-weakest");
 const miniAuditFriction = document.querySelector("#mini-audit-friction");
+const miniAuditNextStep = document.querySelector("#mini-audit-next-step");
+const miniAuditUpgrade = document.querySelector("#mini-audit-upgrade");
+const miniAuditPersonal = document.querySelector("#mini-audit-personal");
+const conceptCarousel = document.querySelector("[data-concept-carousel]");
 const mainSite = document.querySelector("#main-site");
+const resumeOverlay = document.querySelector("#full-audit-resume-overlay");
 const fullAuditMode = document.querySelector("#full-audit-mode");
 const fullAuditRoot = document.querySelector("#full-audit-app");
-
-const resultBands = [
-  { max: 39, title: "Off Track", message: "The pattern here is not just low energy or a rough patch. It suggests your life is being run with too little structure, too little clarity, or too little honesty about what is not working." },
-  { max: 59, title: "Stable but Stretched", message: "There is enough stability to keep things moving, but not enough coherence to make life feel clean. You are likely carrying avoidable friction in the background." },
-  { max: 79, title: "High Potential, Poor Alignment", message: "This looks less like lack of capacity and more like misdirected capacity. You likely have real upside, but your current setup is not converting that into consistent momentum." },
-  { max: 100, title: "Strong Foundation, Needs Precision", message: "The base is there. What is missing is precision. A few unresolved weak points are likely keeping good performance from becoming fully aligned performance." },
-];
 
 const frictionCopyByArea = {
   Clarity: "You may be functioning without a sharp enough picture of what actually matters, which makes good effort scatter.",
@@ -429,9 +491,105 @@ const frictionCopyByArea = {
 };
 
 const miniAuditState = {
+  stage: "capture",
   index: 0,
   answers: {},
+  user: loadMiniAuditUser(),
 };
+window.lifeAuditUser = { ...miniAuditState.user };
+
+function loadMiniAuditUser() {
+  try {
+    const raw = window.localStorage.getItem("lifeAudit.miniAuditUser");
+    if (!raw) return { name: "", email: "" };
+    const parsed = JSON.parse(raw);
+    return {
+      name: typeof parsed.name === "string" ? parsed.name : "",
+      email: typeof parsed.email === "string" ? parsed.email : "",
+    };
+  } catch {
+    return { name: "", email: "" };
+  }
+}
+
+function saveMiniAuditUser() {
+  try {
+    window.localStorage.setItem("lifeAudit.miniAuditUser", JSON.stringify(miniAuditState.user));
+  } catch {}
+  window.lifeAuditUser = { ...miniAuditState.user };
+}
+
+function mentalLoadScore(areas) {
+  return Math.max(1, Math.min(5, Math.round(6 - ((areas.clarity + areas.alignment) / 2))));
+}
+
+function analyseMiniAudit(areas) {
+  const strongest = Object.entries(areas).sort((a, b) => b[1] - a[1])[0];
+  const weakest = Object.entries(areas).sort((a, b) => a[1] - b[1])[0];
+  const mentalLoad = mentalLoadScore(areas);
+  const directionLow = areas.alignment <= 2;
+  const clarityLow = areas.clarity <= 2;
+  const energyLow = areas.energy <= 2;
+  const disciplineLow = areas.followThrough <= 2;
+  const relationshipLow = areas.relationships <= 2;
+  const insightHighExecutionLow = areas.clarity >= 4 && areas.alignment >= 4 && areas.followThrough <= 2;
+  const stableButFlat = Object.values(areas).every((score) => score >= 3) && Object.values(areas).every((score) => score <= 4);
+
+  let diagnosis = "Something important is being carried in the background.";
+  let summary = "The surface may still look functional, but the pattern underneath suggests avoidable drag and split attention.";
+  let pattern = "You seem to be compensating around the issue rather than properly resolving it.";
+  let nextStep = "Name the one source of friction you already know is costing more energy than it should.";
+  let upgrade = "The full Life Audit helps separate surface symptoms from the deeper pattern driving them.";
+
+  if (mentalLoad >= 4 && !relationshipLow) {
+    diagnosis = "You're not lacking effort. You're carrying too much in the background.";
+    summary = "Your answers suggest mental load is quietly eating into clarity and follow-through. This does not read like low capability. It reads like too many unresolved tabs staying open at once.";
+    pattern = "You may be trying to function at a decent level while carrying unfinished decisions, diffuse pressure, or low-grade internal noise in the background.";
+    nextStep = "Close or clearly define one open loop that has been following you around longer than it should.";
+    upgrade = "The full Life Audit goes deeper into hidden friction, mental tabs, and the unresolved patterns still shaping your decisions.";
+  } else if (insightHighExecutionLow) {
+    diagnosis = "You can see what matters, but your life is not fully backing it up.";
+    summary = "This looks less like confusion and more like a gap between insight and execution. You likely know more than your current structure is helping you act on.";
+    pattern = "The pattern here is under-converted clarity: strong awareness, but not enough protection, rhythm, or follow-through to make it real.";
+    nextStep = "Choose one standard you already believe in and make it visible in your week within the next seven days.";
+    upgrade = "The full Life Audit helps trace why clear insight is not yet turning into stable action.";
+  } else if (energyLow && disciplineLow) {
+    diagnosis = "Your system looks under-supported, not under-motivated.";
+    summary = "The result suggests your energy and follow-through are interfering with each other. When the physical base drops, discipline usually becomes harder to trust.";
+    pattern = "What may feel like inconsistency could partly be a maintenance problem: lower energy, weaker recovery, then less reliable execution.";
+    nextStep = "Stabilise one physical basic first: sleep, movement, or recovery. Do not try to fix everything at once.";
+    upgrade = "The full Life Audit goes further into how energy, discipline, and internal pressure are feeding each other.";
+  } else if (directionLow && clarityLow) {
+    diagnosis = "You may not be off track. You may be under-defined.";
+    summary = "Your answers point to a lack of clear internal direction. When the picture is too loose, effort tends to scatter and life starts to feel heavier than it should.";
+    pattern = "The pattern here is not a lack of intelligence. It is a lack of a strong enough organising direction.";
+    nextStep = "Write down what actually matters most right now in one sentence, without trying to make it impressive.";
+    upgrade = "The full Life Audit helps uncover the identity, standards, and direction your current life is actually being organised around.";
+  } else if (relationshipLow) {
+    diagnosis = "Part of the strain may be relational, not just internal.";
+    summary = "Your answers suggest that people, honesty, or relational tension may be taking up more space than is obvious on the surface.";
+    pattern = "When relationships feel unsteady, they tend to drain mental bandwidth long before the problem becomes fully visible.";
+    nextStep = "Name the one relationship or conversation that is costing more energy than you have admitted.";
+    upgrade = "The full Life Audit goes deeper into relationships, communication, and the hidden tension that keeps showing up elsewhere.";
+  } else if (stableButFlat) {
+    diagnosis = "The surface looks stable, but it may be flatter than it should be.";
+    summary = "Nothing here looks chaotic, but it also does not look fully aligned. This kind of pattern often means the real issue is subtle enough to stay unchallenged for too long.";
+    pattern = "You may be functioning reasonably well while slowly normalising a version of life that is less sharp, honest, or energised than it could be.";
+    nextStep = "Do not ask what is broken. Ask what feels quietly below your level.";
+    upgrade = "The full Life Audit is designed to surface the deeper patterns that do not show up as obvious crisis, but still shape the whole system.";
+  }
+
+  return {
+    diagnosis,
+    summary,
+    pattern,
+    strongest,
+    weakest,
+    nextStep,
+    upgrade,
+    mentalLoad,
+  };
+}
 
 function completeMiniAudit() {
   const answers = miniAuditQuestions.map((question) => Number(miniAuditState.answers[question[0]]));
@@ -440,26 +598,34 @@ function completeMiniAudit() {
     miniAuditTitle.textContent = "Complete all 5 questions";
     miniAuditMessage.textContent = "Choose one answer for each question so the audit can calculate your score.";
     miniAuditScore.textContent = "--/100";
+    if (miniAuditPattern) miniAuditPattern.textContent = "The result needs all five answers before it can recognise the pattern properly.";
     miniAuditStrongest.textContent = "--";
-    miniAuditWeakest.textContent = "--";
     miniAuditFriction.textContent = "The audit needs all five answers before it can point to the main source of drag.";
+    if (miniAuditNextStep) miniAuditNextStep.textContent = "Complete the full free trial audit first.";
+    if (miniAuditUpgrade) miniAuditUpgrade.textContent = "The full Life Audit goes deeper into identity, health, relationships, discipline, clarity, direction, and hidden friction.";
     miniAuditResult.hidden = false;
     return;
   }
 
   const totalScore = answers.reduce((sum, value) => sum + value, 0);
   const scoreOutOf100 = totalScore * 4;
-  const band = resultBands.find((item) => scoreOutOf100 <= item.max) ?? resultBands[resultBands.length - 1];
-  const scoredAreas = miniAuditQuestions.map((question, index) => ({ area: question[1], score: answers[index] }));
-  const strongest = [...scoredAreas].sort((a, b) => b.score - a.score)[0];
-  const weakest = [...scoredAreas].sort((a, b) => a.score - b.score)[0];
+  const areas = Object.fromEntries(miniAuditQuestions.map((question, index) => [question[0], answers[index]]));
+  const analysis = analyseMiniAudit(areas);
+  const firstName = miniAuditState.user.name.trim().split(/\s+/)[0];
 
   miniAuditScore.textContent = `${scoreOutOf100}/100`;
-  miniAuditTitle.textContent = band.title;
-  miniAuditMessage.textContent = band.message;
-  miniAuditStrongest.textContent = `${strongest.area} (${strongest.score}/5)`;
-  miniAuditWeakest.textContent = `${weakest.area} (${weakest.score}/5)`;
-  miniAuditFriction.textContent = frictionCopyByArea[weakest.area] ?? "A weaker area is likely creating more background drag than it first appears.";
+  miniAuditTitle.textContent = analysis.diagnosis;
+  miniAuditMessage.textContent = analysis.summary;
+  if (miniAuditPattern) miniAuditPattern.textContent = analysis.pattern;
+  miniAuditStrongest.textContent = `${miniAuditQuestions.find((question) => question[0] === analysis.strongest[0])?.[1] || analysis.strongest[0]} (${analysis.strongest[1]}/5)`;
+  miniAuditFriction.textContent = frictionCopyByArea[miniAuditQuestions.find((question) => question[0] === analysis.weakest[0])?.[1] || ""] ?? "One weaker area is likely creating more background drag than it first appears.";
+  if (miniAuditNextStep) miniAuditNextStep.textContent = analysis.nextStep;
+  if (miniAuditUpgrade) miniAuditUpgrade.textContent = analysis.upgrade;
+  if (miniAuditPersonal) {
+    miniAuditPersonal.hidden = !firstName;
+    miniAuditPersonal.textContent = firstName ? `${firstName}, here's what stands out.` : "";
+  }
+  miniAuditState.stage = "results";
   miniAuditFlow.hidden = true;
   miniAuditResult.hidden = false;
 }
@@ -467,23 +633,58 @@ function completeMiniAudit() {
 function renderMiniAudit() {
   if (!miniAuditFlow) return;
   miniAuditFlow.hidden = false;
+  if (miniAuditState.stage === "capture") {
+    miniAuditFlow.innerHTML = `
+      <form class="mini-audit-card mini-audit-capture" id="mini-audit-capture">
+        <div class="mini-audit-head">
+          <div>
+            <p class="mini-audit-kicker">Before you begin</p>
+            <h3>Start your free trial audit.</h3>
+          </div>
+          <div class="mini-audit-progresscopy">
+            <strong>Opening step</strong>
+            <span>About 20 seconds</span>
+          </div>
+        </div>
+          <p class="mini-audit-capture-copy">This works best when your answers are honest and uninterrupted. We'll save your progress and keep your first pattern read tied to your details.</p>
+        <div class="mini-audit-fields">
+          <label class="mini-audit-field">
+            <span>Name</span>
+            <input type="text" name="name" value="${h(miniAuditState.user.name)}" placeholder="Your name" autocomplete="name" required />
+          </label>
+          <label class="mini-audit-field">
+            <span>Email</span>
+            <input type="email" name="email" value="${h(miniAuditState.user.email)}" placeholder="you@example.com" autocomplete="email" required />
+          </label>
+        </div>
+        <div class="mini-audit-footer">
+          <span class="mini-audit-footnote">Used to save your progress and personalise your preliminary result.</span>
+          <button class="button button-primary" type="submit">Begin the audit</button>
+        </div>
+      </form>
+    `;
+    return;
+  }
   const item = miniAuditQuestions[miniAuditState.index];
   const selected = miniAuditState.answers[item[0]];
   const isLast = miniAuditState.index === miniAuditQuestions.length - 1;
+  const progressNodes = miniAuditQuestions.map((_, index) => {
+    const state = index < miniAuditState.index ? "is-complete" : index === miniAuditState.index ? "is-current" : "is-pending";
+    return `<span class="mini-audit-progress-node ${state}"></span>`;
+  }).join("");
 
   miniAuditFlow.innerHTML = `
     <div class="mini-audit-card">
       <div class="mini-audit-head">
         <div>
-          <p class="mini-audit-kicker">Quick try</p>
+          <p class="mini-audit-kicker">First look beneath the surface</p>
           <h3>${h(item[2])}</h3>
         </div>
-        <div class="mini-audit-progresscopy">
-          <strong>${miniAuditState.index + 1} / ${miniAuditQuestions.length}</strong>
-          <span>Fast read</span>
-        </div>
       </div>
-      <div class="mini-audit-progress"><span style="width:${((miniAuditState.index + 1) / miniAuditQuestions.length) * 100}%"></span></div>
+      <div class="mini-audit-progress" aria-hidden="true">
+        <div class="mini-audit-progress-line"></div>
+        <div class="mini-audit-progress-network">${progressNodes}</div>
+      </div>
       <div class="audit-options mini-audit-options">
         ${item[3].map(([label, score]) => `
           <button class="mini-audit-option ${selected === score ? "is-selected" : ""}" type="button" data-mini-score="${score}">
@@ -537,6 +738,46 @@ if (miniAuditFlow && miniAuditResult) {
     miniAuditResult.hidden = true;
     renderMiniAudit();
   });
+
+  miniAuditFlow.addEventListener("submit", (event) => {
+    const captureForm = event.target.closest("#mini-audit-capture");
+    if (!captureForm) return;
+    event.preventDefault();
+    const formData = new FormData(captureForm);
+    const name = String(formData.get("name") || "").trim();
+    const email = String(formData.get("email") || "").trim();
+    if (!name || !email) return;
+    miniAuditState.user = { name, email };
+    miniAuditState.stage = "questions";
+    saveMiniAuditUser();
+    miniAuditResult.hidden = true;
+    renderMiniAudit();
+  });
+}
+
+if (conceptCarousel) {
+  const track = conceptCarousel.querySelector("#concept-track");
+  const prev = conceptCarousel.querySelector("[data-concept-prev]");
+  const next = conceptCarousel.querySelector("[data-concept-next]");
+  const dots = [...conceptCarousel.querySelectorAll("[data-concept-dot]")];
+  let currentConcept = 0;
+
+  function renderConcept(index) {
+    currentConcept = (index + conceptSlides.length) % conceptSlides.length;
+    if (track) {
+      track.style.transform = `translateX(-${currentConcept * 100}%)`;
+    }
+    dots.forEach((dot, dotIndex) => {
+      dot.classList.toggle("is-active", dotIndex === currentConcept);
+    });
+  }
+
+  prev?.addEventListener("click", () => renderConcept(currentConcept - 1));
+  next?.addEventListener("click", () => renderConcept(currentConcept + 1));
+  dots.forEach((dot, index) => {
+    dot.addEventListener("click", () => renderConcept(index));
+  });
+  renderConcept(0);
 }
 
 const storageKey = "lifeAudit.fullAuditState";
@@ -554,37 +795,138 @@ const voiceState = {
   message: "",
 };
 let voiceRecognition = null;
+let introTypingRun = 0;
+let fullAuditEntryRequested = false;
+
+function readMiniAuditUser() {
+  try {
+    const raw = window.localStorage.getItem("lifeAudit.miniAuditUser");
+    if (!raw) return { name: "", email: "" };
+    const parsed = JSON.parse(raw);
+    return {
+      name: typeof parsed.name === "string" ? parsed.name : "",
+      email: typeof parsed.email === "string" ? parsed.email : "",
+    };
+  } catch {
+    return { name: "", email: "" };
+  }
+}
+
+function defaultFullAuditState() {
+  return {
+    started: false,
+    currentIndex: 0,
+    answers: {},
+    reflections: {},
+    supportOpen: null,
+    depthPromptQuestionId: null,
+    depthPromptBypass: {},
+    focusMode: false,
+    disclaimerChecked: false,
+    disclaimerAccepted: false,
+    user: readMiniAuditUser(),
+  };
+}
 
 function loadState() {
   try {
     const raw = window.localStorage.getItem(storageKey);
-    if (!raw) return { started: false, currentIndex: 0, answers: {}, reflections: {}, supportOpen: null, disclaimerChecked: false, disclaimerAccepted: false };
+    if (!raw) return defaultFullAuditState();
     const parsed = JSON.parse(raw);
-    return { started: Boolean(parsed.started), currentIndex: Number.isInteger(parsed.currentIndex) ? parsed.currentIndex : 0, answers: parsed.answers || {}, reflections: parsed.reflections || {}, supportOpen: parsed.supportOpen || null, disclaimerChecked: Boolean(parsed.disclaimerChecked), disclaimerAccepted: Boolean(parsed.disclaimerAccepted) };
+    const fallbackUser = readMiniAuditUser();
+    return {
+      started: Boolean(parsed.started),
+      currentIndex: Number.isInteger(parsed.currentIndex) ? parsed.currentIndex : 0,
+      answers: parsed.answers || {},
+      reflections: parsed.reflections || {},
+      supportOpen: parsed.supportOpen || null,
+      depthPromptQuestionId: typeof parsed.depthPromptQuestionId === "string" ? parsed.depthPromptQuestionId : null,
+      depthPromptBypass: parsed.depthPromptBypass || {},
+      focusMode: Boolean(parsed.focusMode),
+      disclaimerChecked: Boolean(parsed.disclaimerChecked),
+      disclaimerAccepted: Boolean(parsed.disclaimerAccepted),
+      user: {
+        name: typeof parsed.user?.name === "string" ? parsed.user.name : fallbackUser.name,
+        email: typeof parsed.user?.email === "string" ? parsed.user.email : fallbackUser.email,
+      },
+    };
   } catch {
-    return { started: false, currentIndex: 0, answers: {}, reflections: {}, supportOpen: null, disclaimerChecked: false, disclaimerAccepted: false };
+    return defaultFullAuditState();
   }
 }
 
 function saveState() {
   try {
+    syncFullAuditUser();
     window.localStorage.setItem(storageKey, JSON.stringify(fullAuditState));
   } catch {
     // Keep the site usable when localStorage is unavailable from a local file context.
   }
 }
+function syncFullAuditUser() {
+  const miniUser = readMiniAuditUser();
+  const globalUser = window.lifeAuditUser || {};
+  fullAuditState.user = {
+    name: fullAuditState.user?.name || globalUser.name || miniUser.name || "",
+    email: fullAuditState.user?.email || globalUser.email || miniUser.email || "",
+  };
+}
+function hasSavedFullAuditProgress() {
+  const hasAnswers = Object.values(fullAuditState.answers || {}).some((group) =>
+    Object.values(group || {}).some((value) => String(value || "").trim())
+  );
+  const hasReflections = Object.values(fullAuditState.reflections || {}).some((value) => String(value || "").trim());
+  return hasAnswers || hasReflections || fullAuditState.currentIndex > 0 || fullAuditState.started || fullAuditState.disclaimerAccepted;
+}
+function renderResumePrompt() {
+  if (!resumeOverlay) return;
+  const firstName = (fullAuditState.user?.name || "").trim().split(/\s+/)[0];
+  resumeOverlay.innerHTML = `
+    <div class="resume-dialog">
+      <p class="section-kicker" style="margin-top: 0;">Full Life Audit</p>
+      <h3>Resume your Full Audit?</h3>
+      <p>${firstName ? `${h(firstName)}, your previous session is still here.` : "Your previous session is still here."} You can continue from where you left off, or clear it and begin again.</p>
+      <div class="resume-actions">
+        <button class="button button-secondary" type="button" data-resume-action="restart">Start over</button>
+        <button class="button button-primary" type="button" data-resume-action="resume">Resume</button>
+      </div>
+    </div>
+  `;
+  resumeOverlay.hidden = false;
+}
+function hideResumePrompt() {
+  if (!resumeOverlay) return;
+  resumeOverlay.hidden = true;
+  resumeOverlay.innerHTML = "";
+}
 function setAuditMode(isActive) {
   if (mainSite) mainSite.hidden = isActive;
   if (fullAuditMode) fullAuditMode.hidden = !isActive;
   document.body.classList.toggle("is-audit-mode", isActive);
+  if (isActive || !fullAuditEntryRequested) hideResumePrompt();
   if (!isActive) {
     window.scrollTo({ top: 0, behavior: "auto" });
   }
 }
 function enterFullAudit() {
+  fullAuditEntryRequested = true;
+  if (hasSavedFullAuditProgress()) {
+    renderResumePrompt();
+    return;
+  }
+  startFreshFullAudit();
+}
+function startFreshFullAudit() {
+  fullAuditEntryRequested = true;
+  syncFullAuditUser();
   fullAuditState.started = false;
   fullAuditState.currentIndex = 0;
+  fullAuditState.answers = {};
+  fullAuditState.reflections = {};
   fullAuditState.supportOpen = null;
+  fullAuditState.depthPromptQuestionId = null;
+  fullAuditState.depthPromptBypass = {};
+  fullAuditState.focusMode = false;
   fullAuditState.disclaimerChecked = false;
   fullAuditState.disclaimerAccepted = false;
   clearVoiceState();
@@ -592,8 +934,16 @@ function enterFullAudit() {
   setAuditMode(true);
   renderFullAudit();
 }
+function resumeFullAudit() {
+  fullAuditEntryRequested = true;
+  syncFullAuditUser();
+  setAuditMode(true);
+  renderFullAudit();
+}
 function exitFullAudit() {
+  fullAuditEntryRequested = false;
   fullAuditState.supportOpen = null;
+  fullAuditState.depthPromptQuestionId = null;
   clearVoiceState();
   saveState();
   setAuditMode(false);
@@ -652,6 +1002,116 @@ function pacingLine(item) {
     "This next layer may show a different pattern.",
   ];
   return lines[(sectionProgress(item).current - 1) % lines.length];
+}
+function wordCount(value) {
+  return String(value || "").trim().split(/\s+/).filter(Boolean).length;
+}
+function questionLead(item, sectionInfo) {
+  if (item.inputType === "scale") {
+    return `Question ${sectionInfo.current} of ${sectionInfo.total} in this section. Choose the number that feels most accurate, not most flattering.`;
+  }
+  if (item.inputType === "short") {
+    return `Question ${sectionInfo.current} of ${sectionInfo.total} in this section. Keep it direct. A clear line is enough.`;
+  }
+  return `Question ${sectionInfo.current} of ${sectionInfo.total} in this section. Write the first honest answer, then refine it if needed.`;
+}
+function depthPromptContent(item) {
+  const bySection = {
+    currentStateSnapshot: ["Name the area that feels strongest, the area that feels most strained, and why that matters now.", "Where do you feel stable, and where are you quietly drifting?", "What part of your current life state is easiest to minimise but hardest to ignore?"],
+    whyAreYouHere: ["What changed recently, or what has been building for longer than you admit?", "What pattern are you tired of carrying?", "What would make this process feel genuinely worthwhile?"],
+    identityCompression: ["What role are you still living from?", "Where did that identity come from?", "What is it costing you now?"],
+    theIdentityGap: ["What standards belong to the version of you that you respect?", "Where is your real life not matching that version yet?", "What behaviour keeps widening that gap?"],
+    positiveTraitsNegativeTraitsOrigins: ["Which trait helps you most, and which one quietly creates the most damage?", "What early pattern or role shaped that trait?", "Where do those older origins still show up now?"],
+    fearMapping: ["What are you protecting yourself from?", "What would the feared outcome seem to mean about you?", "Where is that fear still shaping behaviour?"],
+    anxietyTriggerAwareness: ["What situations change your internal state fastest?", "What theme keeps repeating underneath those reactions?", "What do you usually do when that trigger gets activated?"],
+    internalThreatAssessment: ["What story, excuse, or emotional loop keeps sabotaging you?", "Where do you know better but still repeat the pattern?", "What inner threat feels most active right now?"],
+    mentalTabsAudit: ["What remains mentally open in the background?", "What decision, conversation, or pressure keeps following you around?", "What would feel lighter if it were finally resolved?"],
+    physicalHealthEnergy: ["What does your energy actually feel like across a normal week?", "What habit is supporting you, and what habit is quietly draining you?", "Where is your body making life harder than it needs to be?"],
+    routineDisciplineDelivery: ["What do your actual routines prove right now?", "Where do you keep breaking promises to yourself?", "What behaviour gap is most visible?"],
+    financialStructuralReality: ["What pressure is structural, not just emotional?", "Where does money or instability affect your decisions?", "What practical reality needs to be named more directly?"],
+    socialEnvironmentArchitecture: ["Who and what around you reinforces your future?", "What environment still reflects an older version of you?", "Where are you adapting to the wrong atmosphere?"],
+    relationshipAudit: ["Which relationship feels most steady, and which one feels most costly?", "Where are you overgiving, avoiding, or shrinking?", "What dynamic is taking more energy than it should?"],
+    communicationAudit: ["What do you tend to leave unsaid?", "How do you usually respond under tension?", "What communication pattern keeps repeating?"],
+    personalOperatingLimitsBoundaries: ["Where do people have too much access to you?", "What do you keep tolerating?", "Which one clear limit would improve life quickly?"],
+    onlineYouVsRealWorldYou: ["What is your digital life replacing?", "When do you reach for stimulation instead of stillness?", "What kind of friction is screen-life helping you avoid?"],
+    connectivityOffSwitch: ["What happens when the noise drops?", "Can you rest without reaching for distraction?", "What comes up when you are not stimulated?"],
+    ambitionPurposePotential: ["What do you actually want, beneath the acceptable answer?", "Where are you underusing your potential?", "What standard would make the next chapter feel more serious?"],
+    valuesNonNegotiables: ["What do you say you stand for?", "Where is your behaviour aligned, and where is it not?", "What non-negotiable needs to become visible again?"],
+    mirrorReportBrutalHonesty: ["If your life were a mirror, what would it be saying back to you?", "What truth now feels harder to soften?", "What pattern is too obvious to keep dressing up?"],
+    patternRecognition: ["What theme is repeating across multiple sections?", "What seems strongest, weakest, or most conflicted?", "What is the pattern underneath the surface details?"],
+    priorityRepairList: ["What needs attention first?", "Which repair would reduce the most drag?", "What issue is making several other issues harder?"],
+    the30DayResetPlan: ["What should start, stop, reduce, or rebuild?", "What would a realistic 30-day reset include?", "What would make the next month visibly different?"],
+    finalCommitment: ["What action would prove this audit mattered?", "What are you no longer available for?", "What will you do next, specifically?"],
+  };
+
+  return {
+    title: "There may be a bit more here worth exploring.",
+    body: "A more detailed answer here will make your result more accurate.",
+    prompts: bySection[item.categoryId] || ["What is actually going on here?", "What sits underneath the first answer?", "What would make this answer more honest or more specific?"],
+  };
+}
+function shouldOfferDepthPrompt(item) {
+  if (item.type !== "question" || item.inputType !== "reflective") return false;
+  if (fullAuditState.depthPromptBypass?.[item.id]) return false;
+  const value = answer(item.categoryId, item.id).trim();
+  if (!value) return false;
+  return wordCount(value) < (item.minWords || 14);
+}
+function focusCurrentAuditField() {
+  window.requestAnimationFrame(() => {
+    const field = fullAuditRoot?.querySelector(".full-audit-textarea, .full-audit-input");
+    field?.focus();
+    if (field?.setSelectionRange) {
+      const end = field.value.length;
+      field.setSelectionRange(end, end);
+    }
+  });
+}
+function syncAuditChrome() {
+  if (!fullAuditMode) return;
+  const currentItem = flow[fullAuditState.currentIndex];
+  const canUseFocusMode = fullAuditState.disclaimerAccepted && fullAuditState.started && currentItem?.type === "question";
+  fullAuditMode.classList.toggle("is-focus-mode", Boolean(fullAuditState.focusMode && canUseFocusMode));
+  const focusButton = fullAuditMode.querySelector("[data-action='toggle-focus-mode']");
+  if (!focusButton) return;
+  focusButton.hidden = !canUseFocusMode;
+  focusButton.textContent = fullAuditState.focusMode ? "Exit Focus Mode" : "Enter Focus Mode";
+}
+function advanceAudit() {
+  clearVoiceState();
+  fullAuditState.currentIndex += 1;
+  fullAuditState.supportOpen = null;
+  fullAuditState.depthPromptQuestionId = null;
+  saveState();
+  renderFullAudit();
+}
+function dismissDepthPrompt(questionId, preserveBypass = false) {
+  if (fullAuditState.depthPromptQuestionId === questionId) {
+    fullAuditState.depthPromptQuestionId = null;
+  }
+  if (!preserveBypass && fullAuditState.depthPromptBypass?.[questionId]) {
+    delete fullAuditState.depthPromptBypass[questionId];
+  }
+}
+function renderQuestionInput(item, value) {
+  if (item.inputType === "scale") {
+    const min = item.scaleMin || 1;
+    const max = item.scaleMax || 10;
+    const numericValue = Number(value);
+    return `<div class="full-audit-scale-wrap"><div class="full-audit-scale" role="radiogroup" aria-label="${h(item.text)}">${Array.from({ length: max - min + 1 }, (_, index) => {
+      const option = min + index;
+      return `<button class="scale-option ${numericValue === option ? "is-active" : ""}" type="button" data-action="set-scale" data-value="${option}" aria-pressed="${numericValue === option ? "true" : "false"}">${option}</button>`;
+    }).join("")}</div><p class="full-audit-scale-copy">Choose the number that feels most accurate, not most flattering.</p></div>`;
+  }
+  if (item.inputType === "short") {
+    return `<input class="full-audit-input" type="text" data-kind="question" data-category-id="${item.categoryId}" data-question-id="${item.id}" placeholder="${item.placeholder}" value="${h(value)}" />`;
+  }
+  return `<textarea class="full-audit-textarea" data-kind="question" data-category-id="${item.categoryId}" data-question-id="${item.id}" placeholder="${item.placeholder}">${h(value)}</textarea>`;
+}
+function renderDepthPrompt(item) {
+  if (fullAuditState.depthPromptQuestionId !== item.id) return "";
+  const prompt = depthPromptContent(item);
+  return `<div class="depth-prompt"><p class="depth-prompt-kicker">Go one layer deeper</p><h3>${prompt.title}</h3><p>${prompt.body}</p><ul>${prompt.prompts.map((entry) => `<li>${entry}</li>`).join("")}</ul><div class="depth-prompt-actions"><button class="button button-secondary" type="button" data-action="depth-add-more">Add more</button><button class="button button-primary" type="button" data-action="depth-continue">Continue anyway</button></div></div>`;
 }
 function categoryScore(step) { const answers = step.questions.map((question) => answer(step.id, question.id).trim()).filter(Boolean); if (!answers.length) return null; const avg = answers.reduce((sum, current) => sum + current.length, 0) / answers.length; return Math.min(10, Math.max(3.5, Number((avg / 42).toFixed(1)))); }
 function summary() { const categoryScores = fullAuditSteps.map((step) => ({ id: step.id, title: step.title, score: categoryScore(step) })); const assessed = categoryScores.filter((item) => item.score !== null); const strongest = [...assessed].sort((a, b) => b.score - a.score).slice(0, 3); const weakest = [...assessed].sort((a, b) => a.score - b.score).slice(0, 3); const root = weakest[0]; return { completion: Math.round((questionItems().reduce((sum, item) => sum + (answer(item.categoryId, item.id).trim() ? 1 : 0), 0) / questionItems().length) * 100), categoryScores, strongest, weakest, frictions: weakest.map((item) => frictionPointByCategory[item.id] || `${item.title} appears to be carrying meaningful friction that is worth examining more closely.`), rootIssue: root ? (rootIssueByCategory[root.id] || `${root.title} may be exposing a broader pattern that sits underneath several other answers.`) : "Root issue will appear once more of the audit is completed.", actionPlan: root ? (actionPlanByCategory[root.id] || ["Name the core issue directly", "Choose the first action that reduces drag", "Turn one insight into a visible behavioural shift"]) : ["Complete more questions", "Then identify the first repair priority", "Use the next pass to turn reflection into sequence"] }; }
@@ -720,20 +1180,118 @@ function renderProgressHeader(item) {
   const progress = journeyProgress(item);
   return `<div class="full-audit-progressbar"><div class="full-audit-progresscopy"><div class="full-audit-meta"><span>${item.title || item.categoryTitle}</span><span>Section ${progress.sectionCurrent} of ${progress.sectionTotal}</span></div><div class="full-audit-submeta"><span>${item.type === "question" ? `Question ${progress.withinCurrent} of ${progress.withinTotal}` : item.type === "milestone" ? "Section complete" : "Chapter transition"}</span><span>${pacingLine(item)}</span></div></div><div class="progress-bar progress-bar-journey"><span style="width:${progress.percent}%"></span></div></div>`;
 }
-function renderDisclaimer() { return `<div class="full-audit-view full-audit-card full-audit-card-disclaimer"><div class="full-audit-meta"><span>Full Life Audit</span><span>Before you begin</span></div><div class="full-audit-copy-block"><p class="section-kicker" style="margin-top: 0;">Disclaimer</p><h2 class="full-audit-title">Use this as a reflective tool, not a verdict.</h2><p class="full-audit-lead">This audit is designed to help you think clearly and answer honestly. It is not therapy, crisis support, or a medical assessment. If something feels heavy, pause when needed and come back with a clearer head.</p><p class="full-audit-note">The goal here is perspective, not pressure. Honest answers matter more than polished ones.</p></div><label class="audit-check"><input type="checkbox" data-action="toggle-disclaimer" ${fullAuditState.disclaimerChecked ? "checked" : ""} /><span>I understand and agree</span></label><div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="exit-audit">Back</button><button class="button button-primary" type="button" data-action="accept-disclaimer" ${fullAuditState.disclaimerChecked ? "" : "disabled"}>Continue</button></div></div>`; }
-function renderIntro() { return `<div class="full-audit-view full-audit-card full-audit-card-welcome"><div class="full-audit-meta"><span>Full Life Audit</span><span>${fullAuditSteps.length} chapters</span></div><div class="full-audit-copy-block"><p class="section-kicker" style="margin-top: 0;">Welcome</p><h2 class="full-audit-title">Enter the audit properly.</h2><p class="full-audit-lead">This is a guided session, not a race. You do not need polished answers. What matters is that your answers are honest enough to be useful.</p><p class="full-audit-note">You will move chapter by chapter. Some sections will go quickly. Others may ask more of you. Accuracy matters more than performance.</p></div><div class="full-audit-statline"><div class="result-line">One chapter at a time</div><div class="result-line">Clear section transitions</div><div class="result-line">The Auditor helps with pacing as well as reflection</div></div><div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="exit-audit">Not now</button><button class="button button-primary" type="button" data-action="start">Begin the Audit</button></div></div>`; }
+function renderDisclaimer() { return `<div class="full-audit-view full-audit-card full-audit-card-disclaimer"><div class="full-audit-meta"><span>Full Life Audit</span><span>Before you begin</span></div><div class="full-audit-copy-block"><p class="section-kicker" style="margin-top: 0;">Disclaimer</p><h2 class="full-audit-title">Use this as a reflective tool, not a verdict.</h2><p class="full-audit-lead">This audit is designed to help you think clearly and answer honestly. It is not therapy, crisis support, or a medical assessment. If something feels heavy, pause when needed and come back with a clearer head.</p><p class="full-audit-note">The goal here is perspective, not pressure. Honest answers matter more than polished ones.</p><p class="audit-legal-copy">Before continuing, you can review the <a href="./privacy.html" target="_blank" rel="noreferrer">Privacy Policy</a> and <a href="./terms.html" target="_blank" rel="noreferrer">Terms &amp; Disclaimer</a>.</p></div><label class="audit-check"><input type="checkbox" data-action="toggle-disclaimer" ${fullAuditState.disclaimerChecked ? "checked" : ""} /><span>I understand and agree</span></label><div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="exit-audit">Back</button><button class="button button-primary" type="button" data-action="accept-disclaimer" ${fullAuditState.disclaimerChecked ? "" : "disabled"}>Continue</button></div></div>`; }
+function renderIntro() {
+  return `<div class="full-audit-view full-audit-card full-audit-card-welcome">
+    <div class="full-audit-meta"><span>Full Life Audit</span><span>${fullAuditSteps.length} chapters</span></div>
+    <div class="full-audit-copy-block full-audit-copy-block-intro">
+      <p class="section-kicker" style="margin-top: 0;">Welcome</p>
+      <div class="intro-typed-stack" data-intro-sequence>
+        <div class="intro-type-row intro-type-row-headline"><h2 class="full-audit-title full-audit-title-intro" data-intro-target="headline">Welcome to the Full Life Audit</h2><span class="intro-cursor" aria-hidden="true"></span></div>
+        <div class="intro-type-row"><p class="full-audit-lead" data-intro-target="line">You've just taken a step most people avoid.</p><span class="intro-cursor" aria-hidden="true"></span></div>
+        <div class="intro-type-row"><p class="full-audit-lead" data-intro-target="line">This process asks for honesty, clarity, and a willingness to look at things properly.</p><span class="intro-cursor" aria-hidden="true"></span></div>
+        <div class="intro-type-row"><p class="full-audit-lead" data-intro-target="line">You do not need perfect answers. You just need real ones.</p><span class="intro-cursor" aria-hidden="true"></span></div>
+        <div class="intro-type-row"><p class="full-audit-note" data-intro-target="line">What you put into this will shape what you get out of it.</p><span class="intro-cursor" aria-hidden="true"></span></div>
+      </div>
+    </div>
+    <div class="full-audit-footer full-audit-footer-intro" data-intro-cta hidden>
+      <button class="button button-primary" type="button" data-action="start">Begin the Full Audit</button>
+    </div>
+  </div>`;
+}
+function startIntroTyping() {
+  const root = fullAuditRoot?.querySelector("[data-intro-sequence]");
+  if (!root) return;
+  const rows = [...root.querySelectorAll(".intro-type-row")];
+  const cta = fullAuditRoot.querySelector("[data-intro-cta]");
+  const runId = ++introTypingRun;
+  rows.forEach((row) => {
+    row.classList.remove("is-active", "is-complete");
+    const target = row.querySelector("[data-intro-target]");
+    if (!target) return;
+    target.dataset.fullText = target.textContent || "";
+    target.textContent = "";
+  });
+  if (cta) {
+    cta.hidden = true;
+    cta.classList.remove("is-visible");
+  }
+  let rowIndex = 0;
+  const typeRow = () => {
+    if (runId !== introTypingRun || rowIndex >= rows.length) {
+      if (cta && runId === introTypingRun) {
+        cta.hidden = false;
+        requestAnimationFrame(() => cta.classList.add("is-visible"));
+      }
+      return;
+    }
+    const row = rows[rowIndex];
+    const target = row.querySelector("[data-intro-target]");
+    const fullText = target?.dataset.fullText || "";
+    if (!target) {
+      rowIndex += 1;
+      typeRow();
+      return;
+    }
+    row.classList.add("is-active");
+    let charIndex = 0;
+    const tick = () => {
+      if (runId !== introTypingRun) return;
+      if (charIndex < fullText.length) {
+        const nextChar = fullText.charAt(charIndex);
+        target.textContent += nextChar;
+        charIndex += 1;
+        const baseDelay = rowIndex === 0 ? 58 : 34;
+        const punctuationDelay = /[.,]/.test(nextChar) ? 180 : /[!?]/.test(nextChar) ? 260 : 0;
+        const lineOpeningDelay = charIndex === 1 ? 220 : 0;
+        window.setTimeout(tick, baseDelay + punctuationDelay + lineOpeningDelay);
+        return;
+      }
+      row.classList.remove("is-active");
+      row.classList.add("is-complete");
+      rowIndex += 1;
+      window.setTimeout(typeRow, rowIndex === rows.length ? 700 : 560);
+    };
+    tick();
+  };
+  typeRow();
+}
 function renderSection(item) { const progress = journeyProgress(item); return `<div class="full-audit-view full-audit-card full-audit-card-intro">${renderProgressHeader(item)}<div class="full-audit-copy-block"><p class="section-kicker" style="margin-top: 0;">Section transition</p><h2 class="full-audit-title">${item.title}</h2><p class="full-audit-lead">${item.description}</p><p class="full-audit-note">This next section explores a different layer. Keep the answers direct. First instinct is often enough to begin.</p></div><div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="back" ${progress.sectionCurrent === 1 ? "disabled" : ""}>Back</button><button class="button button-primary" type="button" data-action="next">Enter section</button></div></div>`; }
-function renderQuestion(item) { const sectionInfo = sectionProgress(item); const value = answer(item.categoryId, item.id); const open = fullAuditState.supportOpen === item.id; const voiceActive = voiceState.activeQuestionId === item.id; return `<div class="full-audit-view full-audit-card full-audit-card-question">${renderProgressHeader(item)}<div class="full-audit-copy-block"><h2 class="full-audit-title">${item.text}</h2><p class="full-audit-lead">Question ${sectionInfo.current} of ${sectionInfo.total} in this section. Write the first honest answer, then refine it if needed.</p></div><div class="full-audit-input-wrap"><textarea class="full-audit-textarea" data-kind="question" data-category-id="${item.categoryId}" data-question-id="${item.id}" placeholder="${item.placeholder}">${h(value)}</textarea><div class="voice-tools"><button class="voice-button ${voiceActive ? "is-listening" : ""}" type="button" data-action="voice" data-category-id="${item.categoryId}" data-question-id="${item.id}">${voiceActive ? "Listening..." : "Use voice input"}</button><span class="voice-copy">${voiceState.message ? h(voiceState.message) : voiceState.supported ? "Optional. Speak if you want a faster first draft." : "Voice input may not be available in this browser."}</span></div></div><div class="auditor-inline"><button class="auditor-toggle" type="button" data-action="support" data-id="${item.id}">${open ? "Hide support" : "Need help thinking?"}</button>${open ? `<div class="auditor-drawer"><div class="auditor-drawer-block"><strong>Thinking prompts</strong><ul>${item.prompts.map((prompt) => `<li>${prompt}</li>`).join("")}</ul></div><div class="auditor-drawer-block"><strong>Why this matters</strong><p>${item.why}</p></div><div class="auditor-drawer-block"><strong>Example answer</strong><p>${item.example}</p></div><div class="auditor-drawer-block"><strong>Pacing note</strong><p>${pacingLine(item)}</p></div></div>` : ""}</div><div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="back">Back</button><button class="button button-primary" type="button" data-action="next">Next</button></div></div>`; }
+function renderQuestion(item) { const sectionInfo = sectionProgress(item); const value = answer(item.categoryId, item.id); const open = fullAuditState.supportOpen === item.id; const voiceActive = voiceState.activeQuestionId === item.id; const focusMode = Boolean(fullAuditState.focusMode); return `<div class="full-audit-view full-audit-card full-audit-card-question ${focusMode ? "is-focus-mode" : ""}">${focusMode ? "" : renderProgressHeader(item)}<div class="full-audit-copy-block"><h2 class="full-audit-title">${item.text}</h2>${focusMode ? "" : `<p class="full-audit-lead">${questionLead(item, sectionInfo)}</p>`}</div><div class="full-audit-input-wrap">${renderQuestionInput(item, value)}${item.inputType === "scale" ? "" : `<div class="voice-tools"><button class="voice-button ${voiceActive ? "is-listening" : ""}" type="button" data-action="voice" data-category-id="${item.categoryId}" data-question-id="${item.id}">${voiceActive ? "Listening..." : "Use voice input"}</button><span class="voice-copy">${voiceState.message ? h(voiceState.message) : voiceState.supported ? "Optional. Speak if you want a faster first draft." : "Voice input may not be available in this browser."}</span></div>`}${renderDepthPrompt(item)}</div>${focusMode ? "" : `<div class="auditor-inline"><button class="auditor-toggle" type="button" data-action="support" data-id="${item.id}">${open ? "Hide support" : "Need help thinking?"}</button>${open ? `<div class="auditor-drawer"><div class="auditor-drawer-block"><strong>Thinking prompts</strong><ul>${item.prompts.map((prompt) => `<li>${prompt}</li>`).join("")}</ul></div><div class="auditor-drawer-block"><strong>Why this matters</strong><p>${item.why}</p></div><div class="auditor-drawer-block"><strong>Example answer</strong><p>${item.example}</p></div><div class="auditor-drawer-block"><strong>Pacing note</strong><p>${pacingLine(item)}</p></div></div>` : ""}</div>`}<div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="back">Back</button><button class="button button-primary" type="button" data-action="next">Next</button></div></div>`; }
 function renderReflection(item) { return `<div class="full-audit-view full-audit-card full-audit-card-reflection">${renderProgressHeader(item)}<div class="full-audit-copy-block"><p class="section-kicker" style="margin-top: 0;">Reflection moment</p><h2 class="full-audit-title">${item.prompt}</h2><p class="full-audit-lead">${item.body}</p><p class="full-audit-note">Honesty matters more than perfection. A short, direct answer is enough.</p></div><div class="full-audit-input-wrap"><textarea class="full-audit-textarea full-audit-textarea-reflection" data-kind="reflection" data-reflection-id="${item.id}" placeholder="Optional. Write a few lines if something clear comes up.">${h(reflectionAnswer(item.id))}</textarea></div><div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="back">Back</button><button class="button button-primary" type="button" data-action="next">Continue</button></div></div>`; }
 function renderMilestone(item) { return `<div class="full-audit-view full-audit-card full-audit-card-milestone">${renderProgressHeader(item)}<div class="full-audit-copy-block"><p class="section-kicker" style="margin-top: 0;">Section complete</p><h2 class="full-audit-title">${item.title} is complete.</h2><p class="full-audit-lead">Keep moving. The point is not to answer perfectly. The point is to keep making the pattern more visible.</p><p class="full-audit-note">Next section: ${item.nextTitle}</p></div><div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="back">Back</button><button class="button button-primary" type="button" data-action="next">${item.nextTitle === "Results" ? "See results" : "Continue"}</button></div></div>`; }
 function renderResults() { const data = summary(); return `<div class="full-audit-view full-audit-card full-audit-card-results"><div class="full-audit-meta"><span>Full Results</span><span>${data.completion}% complete</span></div><div class="full-audit-copy-block"><h2 class="full-audit-title">Results scaffold</h2><p class="full-audit-lead">This screen is prepared for the fuller scoring engine. For now it uses the guided flow and stored answers to scaffold the final product shape.</p></div><div class="results-block"><h4>Category scores</h4><div class="results-grid">${data.categoryScores.map((item) => `<div class="result-tile"><span>${item.title}</span><strong>${item.score === null ? "Not yet assessed" : `${item.score}/10`}</strong></div>`).join("")}</div></div><div class="results-block"><h4>Strongest areas</h4><div class="results-list">${data.strongest.length ? data.strongest.map((item) => `<div class="result-line">${item.title} <strong>${item.score}/10</strong></div>`).join("") : `<div class="result-line">Complete more questions to surface strongest areas.</div>`}</div></div><div class="results-block"><h4>Weakest areas</h4><div class="results-list">${data.weakest.length ? data.weakest.map((item) => `<div class="result-line">${item.title} <strong>${item.score}/10</strong></div>`).join("") : `<div class="result-line">Complete more questions to surface weakest areas.</div>`}</div></div><div class="results-block"><h4>Friction points</h4><div class="results-list">${data.frictions.length ? data.frictions.map((item) => `<div class="result-line">${item}</div>`).join("") : `<div class="result-line">Friction points will appear once categories have enough material.</div>`}</div></div><div class="results-block"><h4>Root issue</h4><div class="result-focus">${data.rootIssue}</div></div><div class="results-block"><h4>Action plan</h4><div class="results-list">${data.actionPlan.map((item) => `<div class="result-line">${item}</div>`).join("")}</div></div><div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="restart">Start again</button><button class="button button-primary" type="button" data-action="review">Review session</button></div></div>`; }
-function renderFullAudit() { if (!fullAuditState.disclaimerAccepted) { fullAuditRoot.innerHTML = renderDisclaimer(); return; } if (!fullAuditState.started) { fullAuditRoot.innerHTML = renderIntro(); return; } if (fullAuditState.currentIndex >= flow.length) { fullAuditRoot.innerHTML = renderResults(); return; } const item = flow[fullAuditState.currentIndex]; fullAuditRoot.innerHTML = item.type === "section" ? renderSection(item) : item.type === "question" ? renderQuestion(item) : item.type === "milestone" ? renderMilestone(item) : renderReflection(item); }
-function resetState() { fullAuditState.started = false; fullAuditState.currentIndex = 0; fullAuditState.answers = {}; fullAuditState.reflections = {}; fullAuditState.supportOpen = null; fullAuditState.disclaimerChecked = false; fullAuditState.disclaimerAccepted = false; clearVoiceState(); saveState(); renderFullAudit(); }
+function renderFullAudit() {
+  syncAuditChrome();
+  if (!fullAuditState.disclaimerAccepted) {
+    fullAuditRoot.innerHTML = renderDisclaimer();
+    syncAuditChrome();
+    return;
+  }
+  if (!fullAuditState.started) {
+    fullAuditRoot.innerHTML = renderIntro();
+    startIntroTyping();
+    syncAuditChrome();
+    return;
+  }
+  if (fullAuditState.currentIndex >= flow.length) {
+    fullAuditRoot.innerHTML = renderResults();
+    syncAuditChrome();
+    return;
+  }
+  const item = flow[fullAuditState.currentIndex];
+  fullAuditRoot.innerHTML = item.type === "section" ? renderSection(item) : item.type === "question" ? renderQuestion(item) : item.type === "milestone" ? renderMilestone(item) : renderReflection(item);
+  syncAuditChrome();
+}
+function resetState() { const preservedUser = { ...fullAuditState.user }; fullAuditState.started = false; fullAuditState.currentIndex = 0; fullAuditState.answers = {}; fullAuditState.reflections = {}; fullAuditState.supportOpen = null; fullAuditState.depthPromptQuestionId = null; fullAuditState.depthPromptBypass = {}; fullAuditState.focusMode = false; fullAuditState.disclaimerChecked = false; fullAuditState.disclaimerAccepted = false; fullAuditState.user = preservedUser; clearVoiceState(); saveState(); renderFullAudit(); }
 
 if (fullAuditRoot) {
   fullAuditRoot.addEventListener("input", (event) => {
     const target = event.target;
-    if (target.dataset.kind === "question") setAnswer(target.dataset.categoryId, target.dataset.questionId, target.value);
+    if (target.dataset.kind === "question") {
+      dismissDepthPrompt(target.dataset.questionId);
+      setAnswer(target.dataset.categoryId, target.dataset.questionId, target.value);
+    }
     if (target.dataset.kind === "reflection") setReflectionAnswer(target.dataset.reflectionId, target.value);
   });
 
@@ -771,18 +1329,60 @@ if (fullAuditMode) {
       }
       return;
     }
-    if (action === "next") {
-      clearVoiceState();
-      fullAuditState.currentIndex += 1;
+    if (action === "toggle-focus-mode") {
+      fullAuditState.focusMode = !fullAuditState.focusMode;
       fullAuditState.supportOpen = null;
       saveState();
       renderFullAudit();
+      if (fullAuditState.focusMode) {
+        focusCurrentAuditField();
+      }
+      return;
+    }
+    if (action === "set-scale") {
+      const item = flow[fullAuditState.currentIndex];
+      if (item?.type === "question") {
+        dismissDepthPrompt(item.id);
+        setAnswer(item.categoryId, item.id, target.dataset.value);
+        renderFullAudit();
+      }
+      return;
+    }
+    if (action === "depth-add-more") {
+      const item = flow[fullAuditState.currentIndex];
+      if (item?.type === "question") {
+        dismissDepthPrompt(item.id);
+        saveState();
+        renderFullAudit();
+        focusCurrentAuditField();
+      }
+      return;
+    }
+    if (action === "depth-continue") {
+      const item = flow[fullAuditState.currentIndex];
+      if (item?.type === "question") {
+        if (!fullAuditState.depthPromptBypass) fullAuditState.depthPromptBypass = {};
+        fullAuditState.depthPromptBypass[item.id] = true;
+        advanceAudit();
+      }
+      return;
+    }
+    if (action === "next") {
+      const item = flow[fullAuditState.currentIndex];
+      if (item?.type === "question" && shouldOfferDepthPrompt(item)) {
+        fullAuditState.depthPromptQuestionId = item.id;
+        saveState();
+        renderFullAudit();
+        return;
+      }
+      advanceAudit();
       return;
     }
     if (action === "back") {
       clearVoiceState();
       fullAuditState.currentIndex = Math.max(0, fullAuditState.currentIndex - 1);
       fullAuditState.supportOpen = null;
+      fullAuditState.depthPromptQuestionId = null;
       saveState();
       renderFullAudit();
       return;
@@ -807,8 +1407,28 @@ if (fullAuditMode) {
   });
 }
 
+if (resumeOverlay) {
+  resumeOverlay.addEventListener("click", (event) => {
+    const target = event.target.closest("[data-resume-action]");
+    if (!target) return;
+    if (target.dataset.resumeAction === "resume") {
+      hideResumePrompt();
+      resumeFullAudit();
+      return;
+    }
+    if (target.dataset.resumeAction === "restart") {
+      hideResumePrompt();
+      const preservedUser = { ...fullAuditState.user };
+      Object.assign(fullAuditState, defaultFullAuditState(), { user: preservedUser });
+      saveState();
+      startFreshFullAudit();
+    }
+  });
+}
+
 renderFullAudit();
 setAuditMode(false);
+hideResumePrompt();
 
 document.querySelectorAll('a[data-start-full-audit="true"]').forEach((node) => {
   node.addEventListener("click", (event) => {
