@@ -1200,6 +1200,43 @@ button {
   align-content: center;
 }
 
+.full-audit-prelude {
+  display: grid;
+  align-content: center;
+  gap: 32px;
+  min-height: calc(100vh - 200px);
+  transition: opacity 420ms ease, transform 420ms ease;
+}
+
+.full-audit-prelude.is-complete {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+.full-audit-prelude-copy {
+  display: grid;
+  gap: 18px;
+  max-width: 760px;
+}
+
+.full-audit-prelude-line {
+  margin: 0;
+  max-width: 680px;
+  font-size: clamp(2rem, 4.6vw, 3.6rem);
+  font-weight: 600;
+  line-height: 1.14;
+  letter-spacing: -0.04em;
+  color: rgba(243, 239, 232, 0.92);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 340ms ease, transform 340ms ease;
+}
+
+.full-audit-prelude-line.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .audit-mode.is-focus-mode {
   background:
     radial-gradient(circle at top, rgba(228, 218, 205, 0.05), transparent 34%),
@@ -1253,6 +1290,17 @@ button {
   max-width: 820px;
 }
 
+.full-audit-intro-panel {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 420ms ease, transform 420ms ease;
+}
+
+.full-audit-intro-panel.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .full-audit-title {
   margin: 0;
   font-family: "Manrope", sans-serif;
@@ -1279,6 +1327,20 @@ button {
   font-size: clamp(2.8rem, 6vw, 5.4rem);
   line-height: 1.04;
   letter-spacing: -0.05em;
+}
+
+.full-audit-prep-copy {
+  display: grid;
+  gap: 0;
+  margin-top: 28px;
+}
+
+.full-audit-prep-title {
+  margin: 0;
+  font-size: clamp(1.7rem, 3vw, 2.35rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--text);
 }
 
 .intro-typed-stack {
@@ -2490,6 +2552,10 @@ button {
 
   .full-audit-title {
     font-size: clamp(2.4rem, 14vw, 4rem);
+  }
+
+  .full-audit-prelude-line {
+    font-size: clamp(1.8rem, 9vw, 3rem);
   }
 
   .full-audit-scale {

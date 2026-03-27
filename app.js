@@ -327,6 +327,13 @@ const conceptSlides = [
     body: "Poor sleep, chronic stress, and weak physical maintenance influence clarity, discipline, mood, and follow-through. What looks like a mindset issue is often partly an energy issue.",
   },
 ];
+const fullAuditPreludeLines = [
+  "This helped me see what I was avoiding.",
+  "I finally understood what was actually going on.",
+  "It gave me clarity I didn't have before.",
+  "It made things feel simpler.",
+  "I knew what to focus on after this.",
+];
 
 function h(value) {
   return String(value ?? "")
@@ -1183,28 +1190,39 @@ function renderProgressHeader(item) {
 function renderDisclaimer() { return `<div class="full-audit-view full-audit-card full-audit-card-disclaimer"><div class="full-audit-meta"><span>Full Life Audit</span><span>Before you begin</span></div><div class="full-audit-copy-block"><p class="section-kicker" style="margin-top: 0;">Disclaimer</p><h2 class="full-audit-title">Use this as a reflective tool, not a verdict.</h2><p class="full-audit-lead">This audit is designed to help you think clearly and answer honestly. It is not therapy, crisis support, or a medical assessment. If something feels heavy, pause when needed and come back with a clearer head.</p><p class="full-audit-note">The goal here is perspective, not pressure. Honest answers matter more than polished ones.</p><p class="audit-legal-copy">Before continuing, you can review the <a href="./privacy.html" target="_blank" rel="noreferrer">Privacy Policy</a> and <a href="./terms.html" target="_blank" rel="noreferrer">Terms &amp; Disclaimer</a>.</p></div><label class="audit-check"><input type="checkbox" data-action="toggle-disclaimer" ${fullAuditState.disclaimerChecked ? "checked" : ""} /><span>I understand and agree</span></label><div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="exit-audit">Back</button><button class="button button-primary" type="button" data-action="accept-disclaimer" ${fullAuditState.disclaimerChecked ? "" : "disabled"}>Continue</button></div></div>`; }
 function renderIntro() {
   return `<div class="full-audit-view full-audit-card full-audit-card-welcome">
-    <div class="full-audit-meta"><span>Full Life Audit</span><span>${fullAuditSteps.length} chapters</span></div>
-    <div class="full-audit-copy-block full-audit-copy-block-intro">
-      <p class="section-kicker" style="margin-top: 0;">Welcome</p>
+    <div class="full-audit-prelude" data-prelude-sequence>
+      <div class="full-audit-meta"><span>Full Life Audit</span><span>${fullAuditSteps.length} chapters</span></div>
+      <div class="full-audit-prelude-copy">
+        <p class="section-kicker" style="margin-top: 0;">A few things people say afterward</p>
+        <p class="full-audit-prelude-line is-visible" data-prelude-line>${fullAuditPreludeLines[0]}</p>
+      </div>
+    </div>
+    <div class="full-audit-copy-block full-audit-copy-block-intro full-audit-intro-panel" data-intro-panel hidden>
+      <p class="section-kicker" style="margin-top: 0;">Before we begin</p>
       <div class="intro-typed-stack" data-intro-sequence>
-        <div class="intro-type-row intro-type-row-headline"><h2 class="full-audit-title full-audit-title-intro" data-intro-target="headline">Welcome to the Full Life Audit</h2><span class="intro-cursor" aria-hidden="true"></span></div>
-        <div class="intro-type-row"><p class="full-audit-lead" data-intro-target="line">You've just taken a step most people avoid.</p><span class="intro-cursor" aria-hidden="true"></span></div>
-        <div class="intro-type-row"><p class="full-audit-lead" data-intro-target="line">This process asks for honesty, clarity, and a willingness to look at things properly.</p><span class="intro-cursor" aria-hidden="true"></span></div>
-        <div class="intro-type-row"><p class="full-audit-lead" data-intro-target="line">You do not need perfect answers. You just need real ones.</p><span class="intro-cursor" aria-hidden="true"></span></div>
-        <div class="intro-type-row"><p class="full-audit-note" data-intro-target="line">What you put into this will shape what you get out of it.</p><span class="intro-cursor" aria-hidden="true"></span></div>
+        <div class="intro-type-row intro-type-row-headline"><h2 class="full-audit-title full-audit-title-intro" data-intro-target="headline">Life Audit</h2><span class="intro-cursor" aria-hidden="true"></span></div>
+      </div>
+      <div class="full-audit-prep-copy">
+        <h3 class="full-audit-prep-title">Ready to begin?</h3>
+        <p class="full-audit-lead">This works best when you're focused and uninterrupted.</p>
+        <p class="full-audit-note">Take a moment.<br />Find a comfortable spot.<br />Remove distractions.<br />Give yourself the time to think properly.</p>
+        <p class="full-audit-note">You don't need perfect answers.<br />Just honest ones.</p>
       </div>
     </div>
     <div class="full-audit-footer full-audit-footer-intro" data-intro-cta hidden>
-      <button class="button button-primary" type="button" data-action="start">Begin the Full Audit</button>
+      <button class="button button-primary" type="button" data-action="start">Begin</button>
     </div>
   </div>`;
 }
 function startIntroTyping() {
+  const prelude = fullAuditRoot?.querySelector("[data-prelude-sequence]");
+  const preludeLine = fullAuditRoot?.querySelector("[data-prelude-line]");
+  const introPanel = fullAuditRoot?.querySelector("[data-intro-panel]");
   const root = fullAuditRoot?.querySelector("[data-intro-sequence]");
-  if (!root) return;
-  const rows = [...root.querySelectorAll(".intro-type-row")];
-  const cta = fullAuditRoot.querySelector("[data-intro-cta]");
+  const cta = fullAuditRoot?.querySelector("[data-intro-cta]");
+  if (!prelude || !preludeLine || !introPanel || !root) return;
   const runId = ++introTypingRun;
+  const rows = [...root.querySelectorAll(".intro-type-row")];
   rows.forEach((row) => {
     row.classList.remove("is-active", "is-complete");
     const target = row.querySelector("[data-intro-target]");
@@ -1212,12 +1230,39 @@ function startIntroTyping() {
     target.dataset.fullText = target.textContent || "";
     target.textContent = "";
   });
+  prelude.hidden = false;
+  prelude.classList.remove("is-complete");
+  introPanel.hidden = true;
+  introPanel.classList.remove("is-visible");
   if (cta) {
     cta.hidden = true;
     cta.classList.remove("is-visible");
   }
+  let preludeIndex = 0;
+  const cyclePrelude = () => {
+    if (runId !== introTypingRun) return;
+    if (preludeIndex >= fullAuditPreludeLines.length) {
+      prelude.classList.add("is-complete");
+      window.setTimeout(() => {
+        if (runId !== introTypingRun) return;
+        prelude.hidden = true;
+        introPanel.hidden = false;
+        requestAnimationFrame(() => introPanel.classList.add("is-visible"));
+        window.setTimeout(typeIntro, 320);
+      }, 420);
+      return;
+    }
+    preludeLine.classList.remove("is-visible");
+    window.setTimeout(() => {
+      if (runId !== introTypingRun) return;
+      preludeLine.textContent = fullAuditPreludeLines[preludeIndex];
+      preludeLine.classList.add("is-visible");
+      preludeIndex += 1;
+      window.setTimeout(cyclePrelude, 1900);
+    }, 240);
+  };
   let rowIndex = 0;
-  const typeRow = () => {
+  const typeIntro = () => {
     if (runId !== introTypingRun || rowIndex >= rows.length) {
       if (cta && runId === introTypingRun) {
         cta.hidden = false;
@@ -1230,7 +1275,7 @@ function startIntroTyping() {
     const fullText = target?.dataset.fullText || "";
     if (!target) {
       rowIndex += 1;
-      typeRow();
+      typeIntro();
       return;
     }
     row.classList.add("is-active");
@@ -1241,20 +1286,23 @@ function startIntroTyping() {
         const nextChar = fullText.charAt(charIndex);
         target.textContent += nextChar;
         charIndex += 1;
-        const baseDelay = rowIndex === 0 ? 58 : 34;
-        const punctuationDelay = /[.,]/.test(nextChar) ? 180 : /[!?]/.test(nextChar) ? 260 : 0;
-        const lineOpeningDelay = charIndex === 1 ? 220 : 0;
+        const baseDelay = 72;
+        const punctuationDelay = /[.,]/.test(nextChar) ? 180 : /[!?]/.test(nextChar) ? 240 : 0;
+        const lineOpeningDelay = charIndex === 1 ? 260 : 0;
         window.setTimeout(tick, baseDelay + punctuationDelay + lineOpeningDelay);
         return;
       }
       row.classList.remove("is-active");
       row.classList.add("is-complete");
       rowIndex += 1;
-      window.setTimeout(typeRow, rowIndex === rows.length ? 700 : 560);
+      window.setTimeout(typeIntro, 720);
     };
     tick();
   };
-  typeRow();
+  preludeLine.textContent = fullAuditPreludeLines[0];
+  preludeLine.classList.add("is-visible");
+  preludeIndex = 1;
+  window.setTimeout(cyclePrelude, 2100);
 }
 function renderSection(item) { const progress = journeyProgress(item); return `<div class="full-audit-view full-audit-card full-audit-card-intro">${renderProgressHeader(item)}<div class="full-audit-copy-block"><p class="section-kicker" style="margin-top: 0;">Section transition</p><h2 class="full-audit-title">${item.title}</h2><p class="full-audit-lead">${item.description}</p><p class="full-audit-note">This next section explores a different layer. Keep the answers direct. First instinct is often enough to begin.</p></div><div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="back" ${progress.sectionCurrent === 1 ? "disabled" : ""}>Back</button><button class="button button-primary" type="button" data-action="next">Enter section</button></div></div>`; }
 function renderQuestion(item) { const sectionInfo = sectionProgress(item); const value = answer(item.categoryId, item.id); const open = fullAuditState.supportOpen === item.id; const voiceActive = voiceState.activeQuestionId === item.id; const focusMode = Boolean(fullAuditState.focusMode); return `<div class="full-audit-view full-audit-card full-audit-card-question ${focusMode ? "is-focus-mode" : ""}">${focusMode ? "" : renderProgressHeader(item)}<div class="full-audit-copy-block"><h2 class="full-audit-title">${item.text}</h2>${focusMode ? "" : `<p class="full-audit-lead">${questionLead(item, sectionInfo)}</p>`}</div><div class="full-audit-input-wrap">${renderQuestionInput(item, value)}${item.inputType === "scale" ? "" : `<div class="voice-tools"><button class="voice-button ${voiceActive ? "is-listening" : ""}" type="button" data-action="voice" data-category-id="${item.categoryId}" data-question-id="${item.id}">${voiceActive ? "Listening..." : "Use voice input"}</button><span class="voice-copy">${voiceState.message ? h(voiceState.message) : voiceState.supported ? "Optional. Speak if you want a faster first draft." : "Voice input may not be available in this browser."}</span></div>`}${renderDepthPrompt(item)}</div>${focusMode ? "" : `<div class="auditor-inline"><button class="auditor-toggle" type="button" data-action="support" data-id="${item.id}">${open ? "Hide support" : "Need help thinking?"}</button>${open ? `<div class="auditor-drawer"><div class="auditor-drawer-block"><strong>Thinking prompts</strong><ul>${item.prompts.map((prompt) => `<li>${prompt}</li>`).join("")}</ul></div><div class="auditor-drawer-block"><strong>Why this matters</strong><p>${item.why}</p></div><div class="auditor-drawer-block"><strong>Example answer</strong><p>${item.example}</p></div><div class="auditor-drawer-block"><strong>Pacing note</strong><p>${pacingLine(item)}</p></div></div>` : ""}</div>`}<div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="back">Back</button><button class="button button-primary" type="button" data-action="next">Next</button></div></div>`; }
