@@ -822,6 +822,8 @@ function defaultFullAuditState() {
     supportOpen: null,
     depthPromptQuestionId: null,
     depthPromptBypass: {},
+    skipPromptQuestionId: null,
+    skippedQuestionIds: {},
     focusMode: false,
     disclaimerChecked: false,
     disclaimerAccepted: false,
@@ -843,6 +845,8 @@ function loadState() {
       supportOpen: parsed.supportOpen || null,
       depthPromptQuestionId: typeof parsed.depthPromptQuestionId === "string" ? parsed.depthPromptQuestionId : null,
       depthPromptBypass: parsed.depthPromptBypass || {},
+      skipPromptQuestionId: typeof parsed.skipPromptQuestionId === "string" ? parsed.skipPromptQuestionId : null,
+      skippedQuestionIds: parsed.skippedQuestionIds || {},
       focusMode: Boolean(parsed.focusMode),
       disclaimerChecked: Boolean(parsed.disclaimerChecked),
       disclaimerAccepted: Boolean(parsed.disclaimerAccepted),
@@ -927,6 +931,8 @@ function startFreshFullAudit() {
   fullAuditState.supportOpen = null;
   fullAuditState.depthPromptQuestionId = null;
   fullAuditState.depthPromptBypass = {};
+  fullAuditState.skipPromptQuestionId = null;
+  fullAuditState.skippedQuestionIds = {};
   fullAuditState.focusMode = false;
   fullAuditState.disclaimerChecked = false;
   fullAuditState.disclaimerAccepted = false;
@@ -973,7 +979,7 @@ function questionItems() { return flow.filter((item) => item.type === "question"
 function sectionQuestionItems(categoryId) { return questionItems().filter((item) => item.categoryId === categoryId); }
 function sectionNumber(categoryId) { return fullAuditSteps.findIndex((step) => step.id === categoryId) + 1; }
 function answer(categoryId, questionId) { return fullAuditState.answers[categoryId]?.[questionId] ?? ""; }
-function setAnswer(categoryId, questionId, value) { if (!fullAuditState.answers[categoryId]) fullAuditState.answers[categoryId] = {}; fullAuditState.answers[categoryId][questionId] = value; saveState(); }
+function setAnswer(categoryId, questionId, value) { if (!fullAuditState.answers[categoryId]) fullAuditState.answers[categoryId] = {}; fullAuditState.answers[categoryId][questionId] = value; if (String(value || "").trim() && fullAuditState.skippedQuestionIds?.[questionId]) { delete fullAuditState.skippedQuestionIds[questionId]; } saveState(); }
 function reflectionAnswer(id) { return fullAuditState.reflections[id] ?? ""; }
 function setReflectionAnswer(id, value) { fullAuditState.reflections[id] = value; saveState(); }
 function questionProgress(item) { const list = questionItems(); return { current: list.findIndex((question) => question.id === item.id) + 1, total: list.length }; }
@@ -1082,11 +1088,21 @@ function renderAudit(mode = "static") {
   fullAuditRenderMode = mode;
   renderFullAudit();
 }
+function isQuestionAnswered(item) {
+  return Boolean(answer(item.categoryId, item.id).trim());
+}
+function pendingSkippedQuestions() {
+  return questionItems().filter((item) => fullAuditState.skippedQuestionIds?.[item.id] && !isQuestionAnswered(item));
+}
+function flowIndexForQuestion(questionId) {
+  return flow.findIndex((item) => item.type === "question" && item.id === questionId);
+}
 function advanceAudit() {
   clearVoiceState();
   fullAuditState.currentIndex += 1;
   fullAuditState.supportOpen = null;
   fullAuditState.depthPromptQuestionId = null;
+  fullAuditState.skipPromptQuestionId = null;
   saveState();
   renderAudit("step");
 }
@@ -1117,6 +1133,11 @@ function renderDepthPrompt(item) {
   if (fullAuditState.depthPromptQuestionId !== item.id) return "";
   const prompt = depthPromptContent(item);
   return `<div class="depth-prompt"><p class="depth-prompt-kicker">Go one layer deeper</p><h3>${prompt.title}</h3><p>${prompt.body}</p><ul>${prompt.prompts.map((entry) => `<li>${entry}</li>`).join("")}</ul><div class="depth-prompt-actions"><button class="button button-secondary" type="button" data-action="depth-add-more">Add more</button><button class="button button-primary" type="button" data-action="depth-continue">Continue anyway</button></div></div>`;
+}
+function renderSkipPrompt(item) {
+  if (fullAuditState.skipPromptQuestionId !== item.id) return "";
+  const skippedBefore = Boolean(fullAuditState.skippedQuestionIds?.[item.id]);
+  return `<div class="skip-prompt"><p class="skip-prompt-kicker">${skippedBefore ? "This was skipped earlier" : "This question is still blank"}</p><h3>${skippedBefore ? "This one still needs an answer before results." : "Are you sure you want to skip this for now?"}</h3><p>${skippedBefore ? "Add anything you can here. The audit will keep bringing skipped questions back before it completes." : "You can pass it for now and return later, but it will be followed up before the audit is complete."}</p><div class="skip-prompt-actions"><button class="button button-secondary" type="button" data-action="skip-add-answer">Add answer</button><button class="button button-primary" type="button" data-action="skip-for-now">${skippedBefore ? "Skip again for now" : "Skip for now"}</button></div></div>`;
 }
 function categoryScore(step) { const answers = step.questions.map((question) => answer(step.id, question.id).trim()).filter(Boolean); if (!answers.length) return null; const avg = answers.reduce((sum, current) => sum + current.length, 0) / answers.length; return Math.min(10, Math.max(3.5, Number((avg / 42).toFixed(1)))); }
 function summary() { const categoryScores = fullAuditSteps.map((step) => ({ id: step.id, title: step.title, score: categoryScore(step) })); const assessed = categoryScores.filter((item) => item.score !== null); const strongest = [...assessed].sort((a, b) => b.score - a.score).slice(0, 3); const weakest = [...assessed].sort((a, b) => a.score - b.score).slice(0, 3); const root = weakest[0]; return { completion: Math.round((questionItems().reduce((sum, item) => sum + (answer(item.categoryId, item.id).trim() ? 1 : 0), 0) / questionItems().length) * 100), categoryScores, strongest, weakest, frictions: weakest.map((item) => frictionPointByCategory[item.id] || `${item.title} appears to be carrying meaningful friction that is worth examining more closely.`), rootIssue: root ? (rootIssueByCategory[root.id] || `${root.title} may be exposing a broader pattern that sits underneath several other answers.`) : "Root issue will appear once more of the audit is completed.", actionPlan: root ? (actionPlanByCategory[root.id] || ["Name the core issue directly", "Choose the first action that reduces drag", "Turn one insight into a visible behavioural shift"]) : ["Complete more questions", "Then identify the first repair priority", "Use the next pass to turn reflection into sequence"] }; }
@@ -1264,10 +1285,11 @@ function startIntroTyping() {
   window.setTimeout(typeIntro, 180);
 }
 function renderSection(item) { const progress = journeyProgress(item); return `<div class="full-audit-view ${fullAuditRenderMode === "step" ? "is-animated" : ""} full-audit-card full-audit-card-intro">${renderProgressHeader(item)}<div class="full-audit-copy-block"><p class="section-kicker" style="margin-top: 0;">Section transition</p><h2 class="full-audit-title">${item.title}</h2><p class="full-audit-lead">${item.description}</p><p class="full-audit-note">This next section explores a different layer. Keep the answers direct. First instinct is often enough to begin.</p></div><div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="back" ${progress.sectionCurrent === 1 ? "disabled" : ""}>Back</button><button class="button button-primary" type="button" data-action="next">Enter section</button></div></div>`; }
-function renderQuestion(item) { const sectionInfo = sectionProgress(item); const value = answer(item.categoryId, item.id); const open = fullAuditState.supportOpen === item.id; const voiceActive = voiceState.activeQuestionId === item.id; const focusMode = Boolean(fullAuditState.focusMode); return `<div class="full-audit-view ${fullAuditRenderMode === "step" ? "is-animated" : ""} full-audit-card full-audit-card-question ${focusMode ? "is-focus-mode" : ""}">${focusMode ? "" : renderProgressHeader(item)}<div class="full-audit-copy-block"><h2 class="full-audit-title">${item.text}</h2>${focusMode ? "" : `<p class="full-audit-lead">${questionLead(item, sectionInfo)}</p>`}</div><div class="full-audit-input-wrap">${renderQuestionInput(item, value)}${item.inputType === "scale" ? "" : `<div class="voice-tools"><button class="voice-button ${voiceActive ? "is-listening" : ""}" type="button" data-action="voice" data-category-id="${item.categoryId}" data-question-id="${item.id}">${voiceActive ? "Listening..." : "Use voice input"}</button><span class="voice-copy">${voiceState.message ? h(voiceState.message) : voiceState.supported ? "Optional. Speak if you want a faster first draft." : "Voice input may not be available in this browser."}</span></div>`}${renderDepthPrompt(item)}</div>${focusMode ? "" : `<div class="auditor-inline"><button class="auditor-toggle" type="button" data-action="support" data-id="${item.id}">${open ? "Hide support" : "Need help thinking?"}</button>${open ? `<div class="auditor-drawer"><div class="auditor-drawer-block"><strong>Thinking prompts</strong><ul>${item.prompts.map((prompt) => `<li>${prompt}</li>`).join("")}</ul></div><div class="auditor-drawer-block"><strong>Why this matters</strong><p>${item.why}</p></div><div class="auditor-drawer-block"><strong>Example answer</strong><p>${item.example}</p></div><div class="auditor-drawer-block"><strong>Pacing note</strong><p>${pacingLine(item)}</p></div></div>` : ""}</div>`}<div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="back">Back</button><button class="button button-primary" type="button" data-action="next">Next</button></div></div>`; }
+function renderQuestion(item) { const sectionInfo = sectionProgress(item); const value = answer(item.categoryId, item.id); const open = fullAuditState.supportOpen === item.id; const voiceActive = voiceState.activeQuestionId === item.id; const focusMode = Boolean(fullAuditState.focusMode); const skippedBefore = Boolean(fullAuditState.skippedQuestionIds?.[item.id]); return `<div class="full-audit-view ${fullAuditRenderMode === "step" ? "is-animated" : ""} full-audit-card full-audit-card-question ${focusMode ? "is-focus-mode" : ""}">${focusMode ? "" : renderProgressHeader(item)}<div class="full-audit-copy-block">${skippedBefore ? `<p class="full-audit-return-note">You skipped this earlier. Add anything you can, then continue.</p>` : ""}<h2 class="full-audit-title">${item.text}</h2>${focusMode ? "" : `<p class="full-audit-lead">${questionLead(item, sectionInfo)}</p>`}</div><div class="full-audit-input-wrap">${renderQuestionInput(item, value)}${item.inputType === "scale" ? "" : `<div class="voice-tools"><button class="voice-button ${voiceActive ? "is-listening" : ""}" type="button" data-action="voice" data-category-id="${item.categoryId}" data-question-id="${item.id}">${voiceActive ? "Listening..." : "Use voice input"}</button><span class="voice-copy">${voiceState.message ? h(voiceState.message) : voiceState.supported ? "Optional. Speak if you want a faster first draft." : "Voice input may not be available in this browser."}</span></div>`}${renderDepthPrompt(item)}${renderSkipPrompt(item)}</div>${focusMode ? "" : `<div class="auditor-inline"><button class="auditor-toggle" type="button" data-action="support" data-id="${item.id}">${open ? "Hide support" : "Need help thinking?"}</button>${open ? `<div class="auditor-drawer"><div class="auditor-drawer-block"><strong>Thinking prompts</strong><ul>${item.prompts.map((prompt) => `<li>${prompt}</li>`).join("")}</ul></div><div class="auditor-drawer-block"><strong>Why this matters</strong><p>${item.why}</p></div><div class="auditor-drawer-block"><strong>Example answer</strong><p>${item.example}</p></div><div class="auditor-drawer-block"><strong>Pacing note</strong><p>${pacingLine(item)}</p></div></div>` : ""}</div>`}<div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="back">Back</button><button class="button button-primary" type="button" data-action="next">Next</button></div></div>`; }
 function renderReflection(item) { return `<div class="full-audit-view ${fullAuditRenderMode === "step" ? "is-animated" : ""} full-audit-card full-audit-card-reflection">${renderProgressHeader(item)}<div class="full-audit-copy-block"><p class="section-kicker" style="margin-top: 0;">Reflection moment</p><h2 class="full-audit-title">${item.prompt}</h2><p class="full-audit-lead">${item.body}</p><p class="full-audit-note">Honesty matters more than perfection. A short, direct answer is enough.</p></div><div class="full-audit-input-wrap"><textarea class="full-audit-textarea full-audit-textarea-reflection" data-kind="reflection" data-reflection-id="${item.id}" placeholder="Optional. Write a few lines if something clear comes up.">${h(reflectionAnswer(item.id))}</textarea></div><div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="back">Back</button><button class="button button-primary" type="button" data-action="next">Continue</button></div></div>`; }
 function renderMilestone(item) { return `<div class="full-audit-view ${fullAuditRenderMode === "step" ? "is-animated" : ""} full-audit-card full-audit-card-milestone">${renderProgressHeader(item)}<div class="full-audit-copy-block"><p class="section-kicker" style="margin-top: 0;">Section complete</p><h2 class="full-audit-title">${item.title} is complete.</h2><p class="full-audit-lead">Keep moving. The point is not to answer perfectly. The point is to keep making the pattern more visible.</p><p class="full-audit-note">Next section: ${item.nextTitle}</p></div><div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="back">Back</button><button class="button button-primary" type="button" data-action="next">${item.nextTitle === "Results" ? "See results" : "Continue"}</button></div></div>`; }
 function renderResults() { const data = summary(); return `<div class="full-audit-view ${fullAuditRenderMode === "step" ? "is-animated" : ""} full-audit-card full-audit-card-results"><div class="full-audit-meta"><span>Full Results</span><span>${data.completion}% complete</span></div><div class="full-audit-copy-block"><h2 class="full-audit-title">Results scaffold</h2><p class="full-audit-lead">This screen is prepared for the fuller scoring engine. For now it uses the guided flow and stored answers to scaffold the final product shape.</p></div><div class="results-block"><h4>Category scores</h4><div class="results-grid">${data.categoryScores.map((item) => `<div class="result-tile"><span>${item.title}</span><strong>${item.score === null ? "Not yet assessed" : `${item.score}/10`}</strong></div>`).join("")}</div></div><div class="results-block"><h4>Strongest areas</h4><div class="results-list">${data.strongest.length ? data.strongest.map((item) => `<div class="result-line">${item.title} <strong>${item.score}/10</strong></div>`).join("") : `<div class="result-line">Complete more questions to surface strongest areas.</div>`}</div></div><div class="results-block"><h4>Weakest areas</h4><div class="results-list">${data.weakest.length ? data.weakest.map((item) => `<div class="result-line">${item.title} <strong>${item.score}/10</strong></div>`).join("") : `<div class="result-line">Complete more questions to surface weakest areas.</div>`}</div></div><div class="results-block"><h4>Friction points</h4><div class="results-list">${data.frictions.length ? data.frictions.map((item) => `<div class="result-line">${item}</div>`).join("") : `<div class="result-line">Friction points will appear once categories have enough material.</div>`}</div></div><div class="results-block"><h4>Root issue</h4><div class="result-focus">${data.rootIssue}</div></div><div class="results-block"><h4>Action plan</h4><div class="results-list">${data.actionPlan.map((item) => `<div class="result-line">${item}</div>`).join("")}</div></div><div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="restart">Start again</button><button class="button button-primary" type="button" data-action="review">Review session</button></div></div>`; }
+function renderSkippedReview() { const pending = pendingSkippedQuestions(); return `<div class="full-audit-view ${fullAuditRenderMode === "step" ? "is-animated" : ""} full-audit-card full-audit-card-milestone"><div class="full-audit-meta"><span>Full Life Audit</span><span>Skipped questions</span></div><div class="full-audit-copy-block"><p class="section-kicker" style="margin-top: 0;">Before results</p><h2 class="full-audit-title">A few questions still need an answer.</h2><p class="full-audit-lead">${pending.length === 1 ? "You skipped 1 question earlier." : `You skipped ${pending.length} questions earlier.`} We can come back to them now before the audit completes.</p><p class="full-audit-note">You do not need perfect answers. Just give each one something real.</p></div><div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="back">Back</button><button class="button button-primary" type="button" data-action="review-skipped">Return to skipped questions</button></div></div>`; }
 function renderFullAudit() {
   syncAuditChrome();
   if (!fullAuditState.disclaimerAccepted) {
@@ -1282,6 +1304,11 @@ function renderFullAudit() {
     return;
   }
   if (fullAuditState.currentIndex >= flow.length) {
+    if (pendingSkippedQuestions().length) {
+      fullAuditRoot.innerHTML = renderSkippedReview();
+      syncAuditChrome();
+      return;
+    }
     fullAuditRoot.innerHTML = renderResults();
     syncAuditChrome();
     return;
@@ -1290,7 +1317,7 @@ function renderFullAudit() {
   fullAuditRoot.innerHTML = item.type === "section" ? renderSection(item) : item.type === "question" ? renderQuestion(item) : item.type === "milestone" ? renderMilestone(item) : renderReflection(item);
   syncAuditChrome();
 }
-function resetState() { const preservedUser = { ...fullAuditState.user }; fullAuditState.started = false; fullAuditState.currentIndex = 0; fullAuditState.answers = {}; fullAuditState.reflections = {}; fullAuditState.supportOpen = null; fullAuditState.depthPromptQuestionId = null; fullAuditState.depthPromptBypass = {}; fullAuditState.focusMode = false; fullAuditState.disclaimerChecked = false; fullAuditState.disclaimerAccepted = false; fullAuditState.user = preservedUser; clearVoiceState(); saveState(); renderAudit("step"); }
+function resetState() { const preservedUser = { ...fullAuditState.user }; fullAuditState.started = false; fullAuditState.currentIndex = 0; fullAuditState.answers = {}; fullAuditState.reflections = {}; fullAuditState.supportOpen = null; fullAuditState.depthPromptQuestionId = null; fullAuditState.depthPromptBypass = {}; fullAuditState.skipPromptQuestionId = null; fullAuditState.skippedQuestionIds = {}; fullAuditState.focusMode = false; fullAuditState.disclaimerChecked = false; fullAuditState.disclaimerAccepted = false; fullAuditState.user = preservedUser; clearVoiceState(); saveState(); renderAudit("step"); }
 
 if (fullAuditRoot) {
   fullAuditRoot.addEventListener("change", (event) => {
@@ -1309,6 +1336,9 @@ if (fullAuditRoot) {
     const target = event.target;
     if (target.dataset.kind === "question") {
       dismissDepthPrompt(target.dataset.questionId);
+      if (fullAuditState.skipPromptQuestionId === target.dataset.questionId && String(target.value || "").trim()) {
+        fullAuditState.skipPromptQuestionId = null;
+      }
       setAnswer(target.dataset.categoryId, target.dataset.questionId, target.value);
     }
     if (target.dataset.kind === "reflection") setReflectionAnswer(target.dataset.reflectionId, target.value);
@@ -1380,8 +1410,35 @@ if (fullAuditMode) {
       }
       return;
     }
+    if (action === "skip-add-answer") {
+      const item = flow[fullAuditState.currentIndex];
+      if (item?.type === "question") {
+        fullAuditState.skipPromptQuestionId = null;
+        saveState();
+        renderAudit("static");
+        focusCurrentAuditField();
+      }
+      return;
+    }
+    if (action === "skip-for-now") {
+      const item = flow[fullAuditState.currentIndex];
+      if (item?.type === "question") {
+        if (!fullAuditState.skippedQuestionIds) fullAuditState.skippedQuestionIds = {};
+        fullAuditState.skippedQuestionIds[item.id] = true;
+        fullAuditState.skipPromptQuestionId = null;
+        saveState();
+        advanceAudit();
+      }
+      return;
+    }
     if (action === "next") {
       const item = flow[fullAuditState.currentIndex];
+      if (item?.type === "question" && !isQuestionAnswered(item)) {
+        fullAuditState.skipPromptQuestionId = item.id;
+        saveState();
+        renderAudit("static");
+        return;
+      }
       if (item?.type === "question" && shouldOfferDepthPrompt(item)) {
         fullAuditState.depthPromptQuestionId = item.id;
         saveState();
@@ -1396,6 +1453,7 @@ if (fullAuditMode) {
       fullAuditState.currentIndex = Math.max(0, fullAuditState.currentIndex - 1);
       fullAuditState.supportOpen = null;
       fullAuditState.depthPromptQuestionId = null;
+      fullAuditState.skipPromptQuestionId = null;
       saveState();
       renderAudit("step");
       return;
@@ -1414,8 +1472,23 @@ if (fullAuditMode) {
       clearVoiceState();
       fullAuditState.currentIndex = 0;
       fullAuditState.supportOpen = null;
+      fullAuditState.skipPromptQuestionId = null;
       saveState();
       renderAudit("step");
+      return;
+    }
+    if (action === "review-skipped") {
+      const pending = pendingSkippedQuestions();
+      if (pending.length) {
+        clearVoiceState();
+        fullAuditState.currentIndex = flowIndexForQuestion(pending[0].id);
+        fullAuditState.supportOpen = null;
+        fullAuditState.depthPromptQuestionId = null;
+        fullAuditState.skipPromptQuestionId = null;
+        saveState();
+        renderAudit("step");
+        focusCurrentAuditField();
+      }
     }
   });
 }
