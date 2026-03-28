@@ -1374,7 +1374,7 @@ button {
   animation: none;
 }
 
-.full-audit-footer-intro {
+.full-audit-footer.full-audit-footer-intro {
   margin-top: 22px;
   width: auto;
   justify-content: center;
@@ -1387,7 +1387,7 @@ button {
     transform 320ms ease;
 }
 
-.full-audit-footer-intro.is-visible {
+.full-audit-footer.full-audit-footer-intro.is-visible {
   opacity: 1;
   transform: translateY(0);
   pointer-events: auto;
@@ -2532,14 +2532,15 @@ button {
     width: 100%;
   }
 
-  .full-audit-footer-intro {
+  .full-audit-footer.full-audit-footer-intro {
     justify-content: center;
     width: 100%;
   }
 
-  .full-audit-footer-intro .button {
+  .full-audit-footer.full-audit-footer-intro .button {
     width: auto;
     min-width: 180px;
+    margin-inline: auto;
   }
 
   .audit-shell,
