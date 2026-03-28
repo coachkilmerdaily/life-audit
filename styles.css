@@ -1204,7 +1204,7 @@ button {
   display: grid;
   align-content: center;
   gap: 32px;
-  min-height: calc(100vh - 200px);
+  min-height: calc(100vh - 220px);
   transition: opacity 420ms ease, transform 420ms ease;
 }
 
@@ -1222,11 +1222,12 @@ button {
 .full-audit-prelude-line {
   margin: 0;
   max-width: 680px;
-  font-size: clamp(2rem, 4.6vw, 3.6rem);
-  font-weight: 600;
-  line-height: 1.14;
+  font-size: clamp(1.28rem, 2.9vw, 2rem);
+  font-weight: 500;
+  font-style: italic;
+  line-height: 1.5;
   letter-spacing: -0.04em;
-  color: rgba(243, 239, 232, 0.92);
+  color: rgba(243, 239, 232, 0.8);
   opacity: 0;
   transform: translateY(10px);
   transition: opacity 340ms ease, transform 340ms ease;
@@ -1291,6 +1292,9 @@ button {
 }
 
 .full-audit-intro-panel {
+  display: grid;
+  align-content: center;
+  min-height: calc(100vh - 220px);
   opacity: 0;
   transform: translateY(10px);
   transition: opacity 420ms ease, transform 420ms ease;
@@ -1332,7 +1336,7 @@ button {
 .full-audit-prep-copy {
   display: grid;
   gap: 0;
-  margin-top: 28px;
+  margin-top: 18px;
 }
 
 .full-audit-prep-title {
@@ -2555,7 +2559,7 @@ button {
   }
 
   .full-audit-prelude-line {
-    font-size: clamp(1.8rem, 9vw, 3rem);
+    font-size: clamp(1.12rem, 5.2vw, 1.48rem);
   }
 
   .full-audit-scale {

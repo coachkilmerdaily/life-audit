@@ -1194,7 +1194,7 @@ function renderIntro() {
       <div class="full-audit-meta"><span>Full Life Audit</span><span>${fullAuditSteps.length} chapters</span></div>
       <div class="full-audit-prelude-copy">
         <p class="section-kicker" style="margin-top: 0;">A few things people say afterward</p>
-        <p class="full-audit-prelude-line is-visible" data-prelude-line>${fullAuditPreludeLines[0]}</p>
+        <p class="full-audit-prelude-line is-visible" data-prelude-line>"${fullAuditPreludeLines[0]}"</p>
       </div>
     </div>
     <div class="full-audit-copy-block full-audit-copy-block-intro full-audit-intro-panel" data-intro-panel hidden>
@@ -1255,7 +1255,7 @@ function startIntroTyping() {
     preludeLine.classList.remove("is-visible");
     window.setTimeout(() => {
       if (runId !== introTypingRun) return;
-      preludeLine.textContent = fullAuditPreludeLines[preludeIndex];
+      preludeLine.textContent = `"${fullAuditPreludeLines[preludeIndex]}"`;
       preludeLine.classList.add("is-visible");
       preludeIndex += 1;
       window.setTimeout(cyclePrelude, 1900);
@@ -1299,7 +1299,7 @@ function startIntroTyping() {
     };
     tick();
   };
-  preludeLine.textContent = fullAuditPreludeLines[0];
+  preludeLine.textContent = `"${fullAuditPreludeLines[0]}"`;
   preludeLine.classList.add("is-visible");
   preludeIndex = 1;
   window.setTimeout(cyclePrelude, 2100);
