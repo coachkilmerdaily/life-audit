@@ -327,13 +327,6 @@ const conceptSlides = [
     body: "Poor sleep, chronic stress, and weak physical maintenance influence clarity, discipline, mood, and follow-through. What looks like a mindset issue is often partly an energy issue.",
   },
 ];
-const fullAuditPreludeLines = [
-  "This helped me see what I was avoiding.",
-  "I finally understood what was actually going on.",
-  "It gave me clarity I didn't have before.",
-  "It made things feel simpler.",
-  "I knew what to focus on after this.",
-];
 
 function h(value) {
   return String(value ?? "")
@@ -1187,22 +1180,14 @@ function renderProgressHeader(item) {
   const progress = journeyProgress(item);
   return `<div class="full-audit-progressbar"><div class="full-audit-progresscopy"><div class="full-audit-meta"><span>${item.title || item.categoryTitle}</span><span>Section ${progress.sectionCurrent} of ${progress.sectionTotal}</span></div><div class="full-audit-submeta"><span>${item.type === "question" ? `Question ${progress.withinCurrent} of ${progress.withinTotal}` : item.type === "milestone" ? "Section complete" : "Chapter transition"}</span><span>${pacingLine(item)}</span></div></div><div class="progress-bar progress-bar-journey"><span style="width:${progress.percent}%"></span></div></div>`;
 }
-function renderDisclaimer() { return `<div class="full-audit-view full-audit-card full-audit-card-disclaimer"><div class="full-audit-meta"><span>Full Life Audit</span><span>Before you begin</span></div><div class="full-audit-copy-block"><p class="section-kicker" style="margin-top: 0;">Disclaimer</p><h2 class="full-audit-title">This is here to help you see things more clearly.</h2><p class="full-audit-lead">The Full Life Audit is a guided self-assessment. It is not therapy, crisis support, or medical advice. If something feels heavy, pause when needed and come back with a clearer head.</p><p class="full-audit-note">The point is honest perspective, not pressure. Simple, direct answers are enough.</p><p class="audit-legal-copy">Before continuing, you can review the <a href="./privacy.html" target="_blank" rel="noreferrer">Privacy Policy</a> and <a href="./terms.html" target="_blank" rel="noreferrer">Terms &amp; Disclaimer</a>.</p></div><label class="audit-check"><input type="checkbox" data-action="toggle-disclaimer" ${fullAuditState.disclaimerChecked ? "checked" : ""} /><span>I understand and agree</span></label><div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="exit-audit">Back</button><button class="button button-primary" type="button" data-action="accept-disclaimer" ${fullAuditState.disclaimerChecked ? "" : "disabled"}>Continue</button></div></div>`; }
+function renderDisclaimer() { return `<div class="full-audit-view full-audit-card full-audit-card-disclaimer"><div class="full-audit-meta"><span>Full Life Audit</span><span>Before you begin</span></div><div class="full-audit-copy-block full-audit-copy-block-disclaimer"><p class="section-kicker" style="margin-top: 0;">Disclaimer</p><p class="full-audit-disclaimer-text">The Full Life Audit is a guided self-assessment. It is not therapy, crisis support, or medical advice.</p><p class="full-audit-disclaimer-text">If something feels heavy, pause when needed and come back with a clearer head.</p><p class="full-audit-disclaimer-text">Simple, direct answers are enough. The point is honest perspective, not pressure.</p><p class="audit-legal-copy">Before continuing, you can review the <a href="./privacy.html" target="_blank" rel="noreferrer">Privacy Policy</a> and <a href="./terms.html" target="_blank" rel="noreferrer">Terms &amp; Disclaimer</a>.</p></div><label class="audit-check"><input type="checkbox" data-disclaimer-checkbox="true" ${fullAuditState.disclaimerChecked ? "checked" : ""} /><span>I understand and agree</span></label><div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="exit-audit">Back</button><button class="button button-primary" type="button" data-action="accept-disclaimer" ${fullAuditState.disclaimerChecked ? "" : "disabled"}>Continue</button></div></div>`; }
 function renderIntro() {
   return `<div class="full-audit-view full-audit-card full-audit-card-welcome">
-    <div class="full-audit-prelude" data-prelude-sequence>
-      <div class="full-audit-meta"><span>Full Life Audit</span><span>${fullAuditSteps.length} chapters</span></div>
-      <div class="full-audit-prelude-copy" data-prelude-copy>
-        <p class="full-audit-prelude-line is-visible" data-prelude-line>"${fullAuditPreludeLines[0]}"</p>
-      </div>
-    </div>
-    <div class="full-audit-copy-block full-audit-copy-block-intro full-audit-intro-panel" data-intro-panel hidden>
-      <p class="full-audit-prelude-label">Before we begin</p>
+    <div class="full-audit-copy-block full-audit-copy-block-intro full-audit-intro-panel is-visible" data-intro-panel>
       <div class="intro-typed-stack" data-intro-sequence>
         <div class="intro-type-row intro-type-row-headline"><h2 class="full-audit-title full-audit-title-intro" data-intro-target="headline">Life Audit</h2><span class="intro-cursor" aria-hidden="true"></span></div>
       </div>
       <div class="full-audit-prep-copy">
-        <h3 class="full-audit-prep-title">Ready to begin?</h3>
         <p class="full-audit-lead">This works best when you're focused and uninterrupted.</p>
         <p class="full-audit-note">Take a moment.<br />Find a comfortable spot.<br />Remove distractions.<br />Give yourself the time to think properly.</p>
         <p class="full-audit-note">You don't need perfect answers.<br />Just honest ones.</p>
@@ -1214,12 +1199,10 @@ function renderIntro() {
   </div>`;
 }
 function startIntroTyping() {
-  const prelude = fullAuditRoot?.querySelector("[data-prelude-sequence]");
-  const preludeCopy = fullAuditRoot?.querySelector("[data-prelude-copy]");
   const introPanel = fullAuditRoot?.querySelector("[data-intro-panel]");
   const root = fullAuditRoot?.querySelector("[data-intro-sequence]");
   const cta = fullAuditRoot?.querySelector("[data-intro-cta]");
-  if (!prelude || !preludeCopy || !introPanel || !root) return;
+  if (!introPanel || !root) return;
   const runId = ++introTypingRun;
   const rows = [...root.querySelectorAll(".intro-type-row")];
   rows.forEach((row) => {
@@ -1229,39 +1212,12 @@ function startIntroTyping() {
     target.dataset.fullText = target.textContent || "";
     target.textContent = "";
   });
-  prelude.hidden = false;
-  prelude.classList.remove("is-complete");
-  introPanel.hidden = true;
-  introPanel.classList.remove("is-visible");
+  introPanel.hidden = false;
+  introPanel.classList.add("is-visible");
   if (cta) {
     cta.hidden = true;
     cta.classList.remove("is-visible");
   }
-  let preludeIndex = 0;
-  const cyclePrelude = () => {
-    if (runId !== introTypingRun) return;
-    if (preludeIndex >= fullAuditPreludeLines.length) {
-      prelude.classList.add("is-complete");
-      window.setTimeout(() => {
-        if (runId !== introTypingRun) return;
-        prelude.hidden = true;
-        introPanel.hidden = false;
-        requestAnimationFrame(() => introPanel.classList.add("is-visible"));
-        window.setTimeout(typeIntro, 320);
-      }, 420);
-      return;
-    }
-    window.setTimeout(() => {
-      if (runId !== introTypingRun) return;
-      const line = document.createElement("p");
-      line.className = "full-audit-prelude-line";
-      line.textContent = `"${fullAuditPreludeLines[preludeIndex]}"`;
-      preludeCopy.appendChild(line);
-      requestAnimationFrame(() => line.classList.add("is-visible"));
-      preludeIndex += 1;
-      window.setTimeout(cyclePrelude, 1900);
-    }, 280);
-  };
   let rowIndex = 0;
   const typeIntro = () => {
     if (runId !== introTypingRun || rowIndex >= rows.length) {
@@ -1300,8 +1256,7 @@ function startIntroTyping() {
     };
     tick();
   };
-  preludeIndex = 1;
-  window.setTimeout(cyclePrelude, 2100);
+  window.setTimeout(typeIntro, 180);
 }
 function renderSection(item) { const progress = journeyProgress(item); return `<div class="full-audit-view full-audit-card full-audit-card-intro">${renderProgressHeader(item)}<div class="full-audit-copy-block"><p class="section-kicker" style="margin-top: 0;">Section transition</p><h2 class="full-audit-title">${item.title}</h2><p class="full-audit-lead">${item.description}</p><p class="full-audit-note">This next section explores a different layer. Keep the answers direct. First instinct is often enough to begin.</p></div><div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="back" ${progress.sectionCurrent === 1 ? "disabled" : ""}>Back</button><button class="button button-primary" type="button" data-action="next">Enter section</button></div></div>`; }
 function renderQuestion(item) { const sectionInfo = sectionProgress(item); const value = answer(item.categoryId, item.id); const open = fullAuditState.supportOpen === item.id; const voiceActive = voiceState.activeQuestionId === item.id; const focusMode = Boolean(fullAuditState.focusMode); return `<div class="full-audit-view full-audit-card full-audit-card-question ${focusMode ? "is-focus-mode" : ""}">${focusMode ? "" : renderProgressHeader(item)}<div class="full-audit-copy-block"><h2 class="full-audit-title">${item.text}</h2>${focusMode ? "" : `<p class="full-audit-lead">${questionLead(item, sectionInfo)}</p>`}</div><div class="full-audit-input-wrap">${renderQuestionInput(item, value)}${item.inputType === "scale" ? "" : `<div class="voice-tools"><button class="voice-button ${voiceActive ? "is-listening" : ""}" type="button" data-action="voice" data-category-id="${item.categoryId}" data-question-id="${item.id}">${voiceActive ? "Listening..." : "Use voice input"}</button><span class="voice-copy">${voiceState.message ? h(voiceState.message) : voiceState.supported ? "Optional. Speak if you want a faster first draft." : "Voice input may not be available in this browser."}</span></div>`}${renderDepthPrompt(item)}</div>${focusMode ? "" : `<div class="auditor-inline"><button class="auditor-toggle" type="button" data-action="support" data-id="${item.id}">${open ? "Hide support" : "Need help thinking?"}</button>${open ? `<div class="auditor-drawer"><div class="auditor-drawer-block"><strong>Thinking prompts</strong><ul>${item.prompts.map((prompt) => `<li>${prompt}</li>`).join("")}</ul></div><div class="auditor-drawer-block"><strong>Why this matters</strong><p>${item.why}</p></div><div class="auditor-drawer-block"><strong>Example answer</strong><p>${item.example}</p></div><div class="auditor-drawer-block"><strong>Pacing note</strong><p>${pacingLine(item)}</p></div></div>` : ""}</div>`}<div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="back">Back</button><button class="button button-primary" type="button" data-action="next">Next</button></div></div>`; }
@@ -1335,7 +1290,7 @@ function resetState() { const preservedUser = { ...fullAuditState.user }; fullAu
 if (fullAuditRoot) {
   fullAuditRoot.addEventListener("change", (event) => {
     const target = event.target;
-    if (target.dataset.action === "toggle-disclaimer") {
+    if (target.dataset.disclaimerCheckbox === "true") {
       fullAuditState.disclaimerChecked = Boolean(target.checked);
       saveState();
       const continueButton = fullAuditRoot.querySelector("[data-action='accept-disclaimer']");
@@ -1367,9 +1322,6 @@ if (fullAuditMode) {
     }
     if (action === "start") {
       startAuditFlow();
-      return;
-    }
-    if (action === "toggle-disclaimer") {
       return;
     }
     if (action === "accept-disclaimer") {
