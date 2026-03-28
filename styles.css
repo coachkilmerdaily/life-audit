@@ -1197,14 +1197,15 @@ button {
   padding-top: 68px;
   padding-bottom: 68px;
   background: rgba(17, 17, 19, 0.94);
-  align-content: center;
+  align-content: start;
+  justify-items: start;
 }
 
 .full-audit-prelude {
   display: grid;
-  align-content: center;
+  align-content: start;
   gap: 32px;
-  min-height: calc(100vh - 220px);
+  min-height: auto;
   transition: opacity 420ms ease, transform 420ms ease;
 }
 
@@ -1215,7 +1216,7 @@ button {
 
 .full-audit-prelude-copy {
   display: grid;
-  gap: 18px;
+  gap: 12px;
   max-width: 760px;
 }
 
@@ -1236,6 +1237,14 @@ button {
 .full-audit-prelude-line.is-visible {
   opacity: 1;
   transform: translateY(0);
+}
+
+.full-audit-prelude-label {
+  margin: 0 0 14px;
+  color: rgba(243, 239, 232, 0.58);
+  font-size: 0.88rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
 .audit-mode.is-focus-mode {
@@ -1293,10 +1302,10 @@ button {
 
 .full-audit-intro-panel {
   display: grid;
-  align-content: center;
-  min-height: calc(100vh - 220px);
+  align-content: start;
+  min-height: auto;
   opacity: 0;
-  transform: translateY(10px);
+  transform: translateY(0);
   transition: opacity 420ms ease, transform 420ms ease;
 }
 
@@ -1391,7 +1400,7 @@ button {
 
 .full-audit-footer-intro {
   margin-top: 22px;
-  justify-content: center;
+  justify-content: flex-start;
   opacity: 0;
   transform: translateY(10px);
   pointer-events: none;
