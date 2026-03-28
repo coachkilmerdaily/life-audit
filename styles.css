@@ -1178,6 +1178,7 @@ button {
   min-height: 78vh;
   display: grid;
   align-content: start;
+  justify-items: center;
   gap: 34px;
   padding: 42px;
   border: 1px solid var(--line);
@@ -1242,13 +1243,14 @@ button {
 .full-audit-card-reflection,
 .full-audit-card-milestone,
 .full-audit-card-disclaimer {
-  justify-items: start;
+  justify-items: center;
 }
 
 .full-audit-meta {
   display: flex;
   justify-content: space-between;
   gap: 18px;
+  width: min(760px, 100%);
   color: rgba(243, 239, 232, 0.56);
   font-size: 0.92rem;
   letter-spacing: 0.04em;
@@ -1256,6 +1258,7 @@ button {
 
 .full-audit-copy-block {
   max-width: 720px;
+  width: min(720px, 100%);
 }
 
 .full-audit-copy-block-intro {
@@ -1391,6 +1394,7 @@ button {
 .full-audit-progressbar {
   display: grid;
   gap: 12px;
+  width: min(760px, 100%);
 }
 
 .full-audit-progresscopy {
@@ -1416,6 +1420,7 @@ button {
 
 .full-audit-input-wrap {
   width: 100%;
+  max-width: 760px;
   overflow: visible;
 }
 
@@ -1602,11 +1607,17 @@ button {
   align-items: center;
   margin-top: 6px;
   padding-bottom: 2px;
+  width: min(760px, 100%);
 }
 
 .auditor-inline {
   display: grid;
   gap: 14px;
+  width: min(760px, 100%);
+}
+
+.full-audit-card-results .results-block {
+  width: min(760px, 100%);
 }
 
 .auditor-toggle {
