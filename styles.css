@@ -1014,9 +1014,14 @@ button {
 }
 
 .scale-option.is-active {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(232, 223, 212, 0.14);
+  border-color: rgba(232, 223, 212, 0.48);
   color: var(--text);
+  font-weight: 700;
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.14),
+    0 0 0 2px rgba(232, 223, 212, 0.14);
 }
 
 .full-audit-nav {
@@ -1162,8 +1167,11 @@ button {
 }
 
 .full-audit-view {
-  animation: auditFade 260ms ease;
   width: 100%;
+}
+
+.full-audit-view.is-animated {
+  animation: auditFade 260ms ease;
 }
 
 .full-audit-card {
