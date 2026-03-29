@@ -69,6 +69,18 @@ function renderPortal() {
         )
         .join("")
     : `<div class="portal-empty">No saved cloud sessions yet. Start the Full Audit once signed in and your draft will begin saving here.</div>`;
+  const authTitle =
+    portalState.mode === "signup"
+      ? "Create account"
+      : portalState.mode === "reset"
+        ? "Reset password"
+        : "Members sign in";
+  const authNote =
+    portalState.mode === "signup"
+      ? "Account access is currently open during development. Purchase gating will be added later."
+      : portalState.mode === "reset"
+        ? "A reset link will be sent to your email so you can choose a new password securely."
+        : "Secure access to your saved audit session.";
 
   portalApp.innerHTML = `
     <div class="portal-page">
@@ -80,8 +92,8 @@ function renderPortal() {
         <section class="portal-card">
           <div class="portal-head">
             <p class="section-kicker">Portal</p>
-            <h1>Your Life Audit account</h1>
-            <p class="legal-lead">Use this space to sign in, access saved drafts, and continue the Full Life Audit across devices once Supabase is connected.</p>
+            <h1>Members area</h1>
+            <p class="legal-lead">Private access to your Life Audit account and saved session.</p>
           </div>
 
           ${
@@ -149,29 +161,12 @@ function renderPortal() {
                 `
                 : `
                   <div class="portal-auth-layout">
-                    <div class="portal-auth-copy">
-                      <p class="section-kicker">Private access</p>
-                      <h2>${
-                        portalState.mode === "signup"
-                          ? "Create your Life Audit account"
-                          : portalState.mode === "reset"
-                            ? "Reset your password"
-                            : "Sign in to continue"
-                      }</h2>
-                      <p>${
-                        portalState.mode === "signup"
-                          ? "Create an account to keep your Full Life Audit saved and continue across sessions."
-                          : portalState.mode === "reset"
-                            ? "We will send a reset link to your email so you can choose a new password securely."
-                            : "Pick up where you left off, access saved drafts, and keep your audit attached to your account."
-                      }</p>
-                      <div class="portal-feature-list">
-                        <div class="portal-feature-item">Saved Full Audit drafts</div>
-                        <div class="portal-feature-item">Private account access</div>
-                        <div class="portal-feature-item">Continue across devices</div>
-                      </div>
-                    </div>
                     <div class="portal-auth-panel">
+                      <div class="portal-auth-top">
+                        <p class="section-kicker">Secure access</p>
+                        <h2>${authTitle}</h2>
+                        <p>${authNote}</p>
+                      </div>
                       <div class="portal-toggle">
                         <button class="portal-toggle-button ${portalState.mode === "signin" ? "is-active" : ""}" type="button" data-portal-mode="signin">Sign in</button>
                         <button class="portal-toggle-button ${portalState.mode === "signup" ? "is-active" : ""}" type="button" data-portal-mode="signup">Create account</button>

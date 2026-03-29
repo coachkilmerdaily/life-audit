@@ -645,12 +645,8 @@ function renderMiniAudit() {
             <p class="mini-audit-kicker">Before you begin</p>
             <h3>Start your free trial audit.</h3>
           </div>
-          <div class="mini-audit-progresscopy">
-            <strong>Opening step</strong>
-            <span>About 20 seconds</span>
-          </div>
         </div>
-          <p class="mini-audit-capture-copy">This works best when your answers are honest and uninterrupted. We'll save your progress and keep your first pattern read tied to your details.</p>
+          <p class="mini-audit-capture-copy">This works best when your answers are honest and uninterrupted.</p>
         <div class="mini-audit-fields">
           <label class="mini-audit-field">
             <span>Name</span>
@@ -662,7 +658,6 @@ function renderMiniAudit() {
           </label>
         </div>
         <div class="mini-audit-footer">
-          <span class="mini-audit-footnote">Used to save your progress and personalise your preliminary result.</span>
           <button class="button button-primary" type="submit">Begin the audit</button>
         </div>
       </form>
