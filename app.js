@@ -337,6 +337,32 @@ function h(value) {
     .replaceAll("'", "&#39;");
 }
 
+const auditDeveloperMode = (() => {
+  try {
+    const hostname = window.location.hostname || "";
+    const protocol = window.location.protocol || "";
+    const isLocalEnvironment =
+      protocol === "file:" ||
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname.endsWith(".local");
+    if (!isLocalEnvironment) {
+      window.localStorage.removeItem("lifeAudit.auditDeveloperMode");
+      return false;
+    }
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("auditdev") === "1") {
+      window.localStorage.setItem("lifeAudit.auditDeveloperMode", "true");
+    }
+    if (params.get("auditdev") === "0") {
+      window.localStorage.removeItem("lifeAudit.auditDeveloperMode");
+    }
+    return window.localStorage.getItem("lifeAudit.auditDeveloperMode") === "true";
+  } catch {
+    return false;
+  }
+})();
+
 function renderSite() {
   app.innerHTML = `<div class="site-shell" id="main-site">
     <div id="top"></div>
@@ -483,31 +509,6 @@ const mainSite = document.querySelector("#main-site");
 const resumeOverlay = document.querySelector("#full-audit-resume-overlay");
 const fullAuditMode = document.querySelector("#full-audit-mode");
 const fullAuditRoot = document.querySelector("#full-audit-app");
-const auditDeveloperMode = (() => {
-  try {
-    const hostname = window.location.hostname || "";
-    const protocol = window.location.protocol || "";
-    const isLocalEnvironment =
-      protocol === "file:" ||
-      hostname === "localhost" ||
-      hostname === "127.0.0.1" ||
-      hostname.endsWith(".local");
-    if (!isLocalEnvironment) {
-      window.localStorage.removeItem("lifeAudit.auditDeveloperMode");
-      return false;
-    }
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("auditdev") === "1") {
-      window.localStorage.setItem("lifeAudit.auditDeveloperMode", "true");
-    }
-    if (params.get("auditdev") === "0") {
-      window.localStorage.removeItem("lifeAudit.auditDeveloperMode");
-    }
-    return window.localStorage.getItem("lifeAudit.auditDeveloperMode") === "true";
-  } catch {
-    return false;
-  }
-})();
 
 const frictionCopyByArea = {
   Clarity: "You may be functioning without a sharp enough picture of what actually matters, which makes good effort scatter.",
