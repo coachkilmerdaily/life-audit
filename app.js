@@ -442,6 +442,7 @@ function renderSite() {
       <div class="audit-mode-bar">
         <span class="audit-mode-label">Full Life Audit</span>
         <div class="audit-mode-actions">
+          ${auditDeveloperMode ? '<button class="audit-dev" type="button" data-action="toggle-dev-map">Developer View</button>' : ""}
           <button class="audit-focus" type="button" data-action="toggle-focus-mode">Enter Focus Mode</button>
           <button class="audit-exit" type="button" data-action="exit-audit">Exit Full Audit</button>
         </div>
@@ -482,6 +483,20 @@ const mainSite = document.querySelector("#main-site");
 const resumeOverlay = document.querySelector("#full-audit-resume-overlay");
 const fullAuditMode = document.querySelector("#full-audit-mode");
 const fullAuditRoot = document.querySelector("#full-audit-app");
+const auditDeveloperMode = (() => {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("auditdev") === "1") {
+      window.localStorage.setItem("lifeAudit.auditDeveloperMode", "true");
+    }
+    if (params.get("auditdev") === "0") {
+      window.localStorage.removeItem("lifeAudit.auditDeveloperMode");
+    }
+    return window.localStorage.getItem("lifeAudit.auditDeveloperMode") === "true";
+  } catch {
+    return false;
+  }
+})();
 
 const frictionCopyByArea = {
   Clarity: "You may be functioning without a sharp enough picture of what actually matters, which makes good effort scatter.",
@@ -799,6 +814,8 @@ let fullAuditEntryRequested = false;
 let fullAuditRenderMode = "static";
 let cloudSyncTimer = null;
 let cloudBootstrapStarted = false;
+const resultReflectionSections = ["diagnosis", "rootIssue", "firstFix"];
+let auditDeveloperPanelOpen = false;
 
 function readMiniAuditUser() {
   try {
@@ -822,6 +839,7 @@ function defaultFullAuditState() {
     completedAt: null,
     answers: {},
     reflections: {},
+    resultReflections: {},
     supportOpen: null,
     depthPromptQuestionId: null,
     depthPromptBypass: {},
@@ -847,6 +865,7 @@ function loadState() {
       completedAt: typeof parsed.completedAt === "string" ? parsed.completedAt : null,
       answers: parsed.answers || {},
       reflections: parsed.reflections || {},
+      resultReflections: parsed.resultReflections || {},
       supportOpen: parsed.supportOpen || null,
       depthPromptQuestionId: typeof parsed.depthPromptQuestionId === "string" ? parsed.depthPromptQuestionId : null,
       depthPromptBypass: parsed.depthPromptBypass || {},
@@ -885,6 +904,7 @@ function normalizedCloudState(raw) {
     completedAt: typeof raw.completedAt === "string" ? raw.completedAt : null,
     answers: raw.answers || {},
     reflections: raw.reflections || {},
+    resultReflections: raw.resultReflections || {},
     supportOpen: raw.supportOpen || null,
     depthPromptQuestionId: typeof raw.depthPromptQuestionId === "string" ? raw.depthPromptQuestionId : null,
     depthPromptBypass: raw.depthPromptBypass || {},
@@ -1073,6 +1093,15 @@ function answer(categoryId, questionId) { return fullAuditState.answers[category
 function setAnswer(categoryId, questionId, value) { if (!fullAuditState.answers[categoryId]) fullAuditState.answers[categoryId] = {}; fullAuditState.answers[categoryId][questionId] = value; if (String(value || "").trim() && fullAuditState.skippedQuestionIds?.[questionId]) { delete fullAuditState.skippedQuestionIds[questionId]; } saveState(); }
 function reflectionAnswer(id) { return fullAuditState.reflections[id] ?? ""; }
 function setReflectionAnswer(id, value) { fullAuditState.reflections[id] = value; saveState(); }
+function resultReflection(id) { return fullAuditState.resultReflections?.[id] || { reaction: "", response: "" }; }
+function setResultReflection(id, patch) {
+  if (!fullAuditState.resultReflections) fullAuditState.resultReflections = {};
+  fullAuditState.resultReflections[id] = {
+    ...resultReflection(id),
+    ...patch,
+  };
+  saveState();
+}
 function questionProgress(item) { const list = questionItems(); return { current: list.findIndex((question) => question.id === item.id) + 1, total: list.length }; }
 function sectionProgress(item) {
   const list = sectionQuestionItems(item.categoryId);
@@ -1171,9 +1200,14 @@ function syncAuditChrome() {
   const canUseFocusMode = fullAuditState.disclaimerAccepted && fullAuditState.started && currentItem?.type === "question";
   fullAuditMode.classList.toggle("is-focus-mode", Boolean(fullAuditState.focusMode && canUseFocusMode));
   const focusButton = fullAuditMode.querySelector("[data-action='toggle-focus-mode']");
-  if (!focusButton) return;
-  focusButton.hidden = !canUseFocusMode;
-  focusButton.textContent = fullAuditState.focusMode ? "Exit Focus Mode" : "Enter Focus Mode";
+  if (focusButton) {
+    focusButton.hidden = !canUseFocusMode || auditDeveloperPanelOpen;
+    focusButton.textContent = fullAuditState.focusMode ? "Exit Focus Mode" : "Enter Focus Mode";
+  }
+  const devButton = fullAuditMode.querySelector("[data-action='toggle-dev-map']");
+  if (devButton) {
+    devButton.textContent = auditDeveloperPanelOpen ? "Close Developer View" : "Developer View";
+  }
 }
 function renderAudit(mode = "static") {
   fullAuditRenderMode = mode;
@@ -1187,6 +1221,9 @@ function pendingSkippedQuestions() {
 }
 function flowIndexForQuestion(questionId) {
   return flow.findIndex((item) => item.type === "question" && item.id === questionId);
+}
+function flowIndexForSectionIntro(categoryId) {
+  return flow.findIndex((item) => item.type === "section" && item.categoryId === categoryId);
 }
 function advanceAudit() {
   clearVoiceState();
@@ -1230,8 +1267,378 @@ function renderSkipPrompt(item) {
   const skippedBefore = Boolean(fullAuditState.skippedQuestionIds?.[item.id]);
   return `<div class="skip-prompt"><p class="skip-prompt-kicker">${skippedBefore ? "This was skipped earlier" : "This question is still blank"}</p><h3>${skippedBefore ? "This one still needs an answer before results." : "Are you sure you want to skip this for now?"}</h3><p>${skippedBefore ? "Add anything you can here. The audit will keep bringing skipped questions back before it completes." : "You can pass it for now and return later, but it will be followed up before the audit is complete."}</p><div class="skip-prompt-actions"><button class="button button-secondary" type="button" data-action="skip-add-answer">Add answer</button><button class="button button-primary" type="button" data-action="skip-for-now">${skippedBefore ? "Skip again for now" : "Skip for now"}</button></div></div>`;
 }
-function categoryScore(step) { const answers = step.questions.map((question) => answer(step.id, question.id).trim()).filter(Boolean); if (!answers.length) return null; const avg = answers.reduce((sum, current) => sum + current.length, 0) / answers.length; return Math.min(10, Math.max(3.5, Number((avg / 42).toFixed(1)))); }
-function summary() { const categoryScores = fullAuditSteps.map((step) => ({ id: step.id, title: step.title, score: categoryScore(step) })); const assessed = categoryScores.filter((item) => item.score !== null); const strongest = [...assessed].sort((a, b) => b.score - a.score).slice(0, 3); const weakest = [...assessed].sort((a, b) => a.score - b.score).slice(0, 3); const root = weakest[0]; return { completion: Math.round((questionItems().reduce((sum, item) => sum + (answer(item.categoryId, item.id).trim() ? 1 : 0), 0) / questionItems().length) * 100), categoryScores, strongest, weakest, frictions: weakest.map((item) => frictionPointByCategory[item.id] || `${item.title} appears to be carrying meaningful friction that is worth examining more closely.`), rootIssue: root ? (rootIssueByCategory[root.id] || `${root.title} may be exposing a broader pattern that sits underneath several other answers.`) : "Root issue will appear once more of the audit is completed.", actionPlan: root ? (actionPlanByCategory[root.id] || ["Name the core issue directly", "Choose the first action that reduces drag", "Turn one insight into a visible behavioural shift"]) : ["Complete more questions", "Then identify the first repair priority", "Use the next pass to turn reflection into sequence"] }; }
+const signalLexicon = {
+  positive: ["clear", "clarity", "calm", "steady", "stable", "strong", "supportive", "honest", "aligned", "grounded", "healthy", "clean", "capable", "direct", "settled", "respect", "proud"],
+  action: ["decide", "decision", "action", "act", "follow through", "follow-through", "routine", "habit", "commit", "discipline", "train", "protect", "enforce", "build", "consistent", "structure"],
+  negative: ["stuck", "confused", "messy", "weak", "drifting", "chaos", "chaotic", "overwhelmed", "drained", "tired", "exhausted", "resentful", "avoid", "avoiding", "postpon", "noise", "unresolved", "stress", "strained", "guilt"],
+  severity: ["burnout", "burned out", "spiral", "panic", "collapse", "numb", "shut down", "shutdown", "trapped", "ashamed", "afraid", "fear", "anxious", "anxiety"],
+  avoidance: ["avoid", "postpon", "later", "someday", "delay", "scroll", "numb", "escape", "pretend", "ignore", "minimise", "minimize"],
+  support: ["sleep", "movement", "training", "rest", "nutrition", "recovery", "conversation", "boundary", "support", "friend", "partner", "family", "environment"],
+};
+
+const categoryMeaning = {
+  selfImage: { strength: "You still have some self-awareness and an ability to step back from yourself accurately.", weakness: "Your identity may be carrying roles that no longer deserve authority.", prompt: "Clarify which version of you should be making decisions now." },
+  emotionalStability: { strength: "There is some emotional awareness here, even if steadiness is not complete yet.", weakness: "Reactivity, fear, or old triggers may still be shaping too much of your behaviour.", prompt: "Name the pattern that takes over fastest when you feel threatened." },
+  physicalHealth: { strength: "Your physical base is giving you at least some usable support.", weakness: "Your body may be under-supporting the standards you are trying to live by.", prompt: "Stabilise one physical basic before trying to fix everything else." },
+  mentalClarity: { strength: "You still have some reflective ability and can see what is happening beneath the surface.", weakness: "Too many unresolved tabs may be reducing clarity and clean decision-making.", prompt: "Close one unresolved loop that keeps following you around." },
+  discipline: { strength: "There is still a standards-based part of you that wants a cleaner life than this.", weakness: "Execution may be lagging behind awareness, which weakens self-trust.", prompt: "Choose one behaviour this week that proves follow-through, not intention." },
+  relationships: { strength: "There is likely at least one stabilising connection or environment still helping you.", weakness: "Relational drag or mismatch may be costing more energy than it first appears.", prompt: "Name the relationship or dynamic creating the most drag." },
+  communication: { strength: "You likely do have a usable communication strength when you are settled enough to access it.", weakness: "What goes unsaid may be creating avoidable friction.", prompt: "Say one true thing earlier than usual." },
+  boundaries: { strength: "You seem to know, at least in part, where cleaner limits would help.", weakness: "Too much access may be diluting your energy and self-respect.", prompt: "Enforce one overdue limit cleanly." },
+  screenLife: { strength: "You can still see the role digital life is playing, which matters.", weakness: "Stimulation or escape may be replacing stillness, recovery, and honest contact.", prompt: "Reduce one avoidant digital habit and replace it with something real." },
+  purpose: { strength: "There is still some sense of what kind of life you would respect.", weakness: "Your direction may be too loose to organise behaviour properly.", prompt: "Define the next chapter in one sentence, without trying to make it impressive." },
+  integrity: { strength: "You still care about alignment, which is why the gap is visible at all.", weakness: "There may be a widening gap between your standards and your lived behaviour.", prompt: "Choose one action that makes your standards visible again this week." },
+};
+
+function normalizeText(value) {
+  return String(value || "").toLowerCase();
+}
+
+function countSignals(text, signals) {
+  return signals.reduce((count, signal) => (text.includes(signal) ? count + 1 : count), 0);
+}
+
+function answerBundle(step) {
+  const responses = step.questions.map((question) => ({
+    id: question.id,
+    text: answer(step.id, question.id).trim(),
+    inputType: question.inputType,
+  }));
+  const answered = responses.filter((response) => response.text);
+  const combined = answered.map((response) => response.text).join(" \n ");
+  const normalized = normalizeText(combined);
+  const averageWords = answered.length ? answered.reduce((sum, response) => sum + wordCount(response.text), 0) / answered.length : 0;
+  return { responses, answered, combined, normalized, averageWords };
+}
+
+function categoryScore(step) {
+  const bundle = answerBundle(step);
+  if (!bundle.answered.length) return null;
+
+  const signalCounts = {
+    positive: countSignals(bundle.normalized, signalLexicon.positive),
+    action: countSignals(bundle.normalized, signalLexicon.action),
+    negative: countSignals(bundle.normalized, signalLexicon.negative),
+    severity: countSignals(bundle.normalized, signalLexicon.severity),
+    avoidance: countSignals(bundle.normalized, signalLexicon.avoidance),
+    support: countSignals(bundle.normalized, signalLexicon.support),
+  };
+
+  const richness = Math.max(0, Math.min(1.6, bundle.averageWords / 22));
+  const answeredRatio = bundle.answered.length / step.questions.length;
+  const score =
+    5.1 +
+    signalCounts.positive * 0.35 +
+    signalCounts.action * 0.28 +
+    signalCounts.support * 0.18 +
+    richness * 1.15 -
+    signalCounts.negative * 0.32 -
+    signalCounts.avoidance * 0.4 -
+    signalCounts.severity * 0.48 +
+    answeredRatio * 0.4;
+
+  return Number(Math.min(9.4, Math.max(2.8, score)).toFixed(1));
+}
+
+function categoryInsight(step, score) {
+  const meaning = categoryMeaning[step.id];
+  if (!meaning) return score >= 6.2 ? "There is some usable strength here." : "This category looks more strained than supported.";
+  return score >= 6.2 ? meaning.strength : meaning.weakness;
+}
+
+function contradictionReads(categoryScores) {
+  const byId = Object.fromEntries(categoryScores.map((item) => [item.id, item.score]));
+  const contradictions = [];
+  if ((byId.purpose ?? 0) >= 6 && (byId.discipline ?? 10) <= 5.4) contradictions.push("You appear able to name what matters more clearly than you are currently living it.");
+  if ((byId.selfImage ?? 0) >= 6 && (byId.integrity ?? 10) <= 5.4) contradictions.push("Your self-concept may be ahead of your day-to-day behaviour, which creates internal friction.");
+  if ((byId.relationships ?? 0) >= 6 && (byId.boundaries ?? 10) <= 5.4) contradictions.push("You may care deeply about connection while still letting too much access erode your steadiness.");
+  if ((byId.mentalClarity ?? 10) <= 5.2 && (byId.discipline ?? 10) <= 5.4) contradictions.push("This does not read like laziness. It reads more like unresolved friction reducing execution.");
+  if ((byId.physicalHealth ?? 10) <= 5.2 && (byId.emotionalStability ?? 10) <= 5.4) contradictions.push("Part of the emotional strain may be amplified by physical under-recovery rather than psychology alone.");
+  return contradictions.slice(0, 3);
+}
+
+function rootDiagnosis(weakest, categoryScores) {
+  const byId = Object.fromEntries(categoryScores.map((item) => [item.id, item.score]));
+  if ((byId.mentalClarity ?? 10) <= 5.4 && (byId.discipline ?? 10) <= 5.5) {
+    return {
+      headline: "You may not be lacking effort. You may be carrying too much unresolved friction.",
+      summary: "The answers suggest a pattern where mental noise, postponed decisions, and uneven follow-through are reinforcing each other. This tends to make life feel heavier than it should, even when the person is capable.",
+    };
+  }
+  if ((byId.selfImage ?? 10) <= 5.5 && (byId.integrity ?? 10) <= 5.5) {
+    return {
+      headline: "The strongest friction may be identity misalignment, not lack of insight.",
+      summary: "There appears to be a gap between the version of you that you respect and the version currently running too many decisions. When identity is unclear or outdated, the rest of life becomes harder to organise.",
+    };
+  }
+  if ((byId.physicalHealth ?? 10) <= 5.4 && (byId.emotionalStability ?? 10) <= 5.5) {
+    return {
+      headline: "Your system looks under-supported, not simply under-motivated.",
+      summary: "The answers point to a body-and-nervous-system issue affecting multiple other layers. Lower energy and recovery often distort clarity, mood, and consistency at the same time.",
+    };
+  }
+  if ((byId.relationships ?? 10) <= 5.5 && (byId.boundaries ?? 10) <= 5.5) {
+    return {
+      headline: "Relational drag may be costing more than it first appears.",
+      summary: "There are signs that access, relational tension, or one-sided dynamics may be draining bandwidth in the background. That kind of drag often spills into focus, patience, and self-trust.",
+    };
+  }
+  if ((byId.purpose ?? 10) <= 5.5 && (byId.mentalClarity ?? 10) <= 5.6) {
+    return {
+      headline: "The issue may be less chaos and more under-defined direction.",
+      summary: "There is a sense of drift here that looks tied to a direction problem. When the next chapter is too vague, effort fragments and life starts to feel heavier than it should.",
+    };
+  }
+  const root = weakest[0];
+  return {
+    headline: frictionPointByCategory[root?.id] || "One area appears to be carrying more friction than the rest.",
+    summary: root ? categoryInsight(fullAuditSteps.find((step) => step.id === root.id), root.score) : "More answers are needed before a clearer diagnostic read is possible.",
+  };
+}
+
+function patternReads(categoryScores) {
+  const byId = Object.fromEntries(categoryScores.map((item) => [item.id, item.score]));
+  const reads = [];
+  if ((byId.mentalClarity ?? 10) <= 5.5) reads.push("Open loops and unresolved decisions seem to be taking up more background energy than they should.");
+  if ((byId.discipline ?? 10) <= 5.5) reads.push("The gap between what matters to you and what your behaviour proves still looks significant.");
+  if ((byId.purpose ?? 10) <= 5.5) reads.push("Direction appears loose enough that effort may be scattering rather than organising around a clear next chapter.");
+  if ((byId.boundaries ?? 10) <= 5.5) reads.push("There may be too much outside access shaping your energy and attention.");
+  if ((byId.integrity ?? 10) <= 5.5) reads.push("You seem aware of at least one place where your standards and behaviour are no longer matching cleanly.");
+  return reads.slice(0, 3);
+}
+
+function buildActionPlan(root, weakest, contradictions) {
+  const primary = root ? (actionPlanByCategory[root.id] || []) : [];
+  const plan = [...primary];
+  if (weakest[1] && actionPlanByCategory[weakest[1].id]) {
+    plan.push(actionPlanByCategory[weakest[1].id][0]);
+  }
+  if (contradictions.length) {
+    plan.push("Choose one contradiction in the result and resolve it through behaviour, not more reflection.");
+  }
+  if (!plan.length) {
+    plan.push("Name the core issue directly.");
+    plan.push("Choose one action that reduces drag this week.");
+    plan.push("Turn one insight into visible follow-through.");
+  }
+  return [...new Set(plan)].slice(0, 4);
+}
+
+function sentenceFragments(text) {
+  return String(text || "")
+    .split(/[\n.!?]+/)
+    .map((part) => part.trim())
+    .filter((part) => wordCount(part) >= 6);
+}
+
+function mirroredLine(categoryId) {
+  const responses = sectionQuestionItems(categoryId)
+    .map((item) => answer(item.categoryId, item.id).trim())
+    .filter(Boolean);
+  for (const response of responses) {
+    const fragment = sentenceFragments(response)[0];
+    if (fragment) {
+      const clean = fragment.replace(/^["']|["']$/g, "");
+      return clean.length > 180 ? `${clean.slice(0, 177)}...` : clean;
+    }
+  }
+  return "";
+}
+
+function strongestRead(strongest) {
+  if (!strongest.length) return "There is enough awareness here to begin, but not yet enough material to trust the read fully.";
+  if (strongest.length === 1) {
+    return `${strongest[0].title} looks like your strongest current asset. ${strongest[0].insight}`;
+  }
+  return `${strongest[0].title} and ${strongest[1].title} look like the parts of you that are still holding the line. They suggest there is more strength here than the friction may have let you feel lately.`;
+}
+
+function consequenceReads(weakest) {
+  const lines = [];
+  const ids = weakest.map((item) => item.id);
+  if (ids.includes("mentalClarity")) lines.push("This is likely reducing clean focus, making decisions feel heavier, and keeping too much mental bandwidth tied up in the background.");
+  if (ids.includes("discipline")) lines.push("It is probably weakening self-trust, because the issue stops being whether you know what matters and becomes whether you believe yourself when you say you will act.");
+  if (ids.includes("relationships") || ids.includes("boundaries")) lines.push("It may also be leaking into relationships, because what is unresolved internally tends to show up as overextension, avoidance, or resentment.");
+  if (ids.includes("physicalHealth")) lines.push("Your energy and patience are likely lower than they should be, which means other problems feel more psychological than they actually are.");
+  if (ids.includes("purpose") || ids.includes("selfImage")) lines.push("The next chapter remains harder to organise when identity and direction are not strong enough to give the rest of life a clean shape.");
+  return lines.slice(0, 4);
+}
+
+function protectivePatternRead(root, contradictions) {
+  if (!root) {
+    return "Once the pattern becomes visible, the real question is whether you will use that clarity or soften it back into abstraction.";
+  }
+  const byRoot = {
+    mentalClarity: "You may be more attached to keeping everything mentally open than you realise. Open loops preserve options, postpone discomfort, and let life remain unresolved for a little longer.",
+    discipline: "You may be protecting the story that you still could change at any time, while avoiding the discomfort of proving it through repeatable action.",
+    selfImage: "Some part of you may still be loyal to an older role. That loyalty can feel safer than becoming the version of you that would actually have to live differently.",
+    purpose: "Vagueness can be protective. A blurred future lets you avoid the risk of committing to a real direction and then being measured by it.",
+    integrity: "At this point the issue may not be awareness. It may be whether you are willing to stop protecting the contradiction.",
+    boundaries: "If you have been shaped by being available, useful, or low-maintenance, stronger boundaries can feel like identity loss before they feel like relief.",
+    relationships: "People often say they want peace while still protecting the very dynamic that keeps them emotionally occupied.",
+    physicalHealth: "It is possible to keep calling this a mindset issue because that feels more noble than admitting the body has been under-supported for too long.",
+  };
+  const contradictionLine = contradictions[0] ? ` The clearest contradiction in your result is this: ${contradictions[0].charAt(0).toLowerCase()}${contradictions[0].slice(1)}` : "";
+  return `${byRoot[root.id] || "Many people enjoy the accuracy of the diagnosis, then protect the pattern anyway because it is familiar."}${contradictionLine}`;
+}
+
+function firstFixRead(root, weakest) {
+  if (!root) return "Pick the one issue that is making several other areas heavier than they need to be.";
+  const secondary = weakest[1];
+  if (!secondary) return categoryMeaning[root.id]?.prompt || "Choose the first repair that reduces the most friction.";
+  return `${categoryMeaning[root.id]?.prompt || "Fix the clearest issue first."} Then stabilise ${secondary.title.toLowerCase()} so the problem does not simply shift shape.`;
+}
+
+function resetPlan(root, weakest) {
+  const primary = root ? (actionPlanByCategory[root.id] || []) : [];
+  const secondary = weakest[1] ? (actionPlanByCategory[weakest[1].id] || []) : [];
+  return {
+    start: [...new Set([primary[0], secondary[0], "Create one weekly check-in where you review whether your behaviour matched the result."]).values()].filter(Boolean).slice(0, 3),
+    stop: [
+      "Stop calling the whole problem 'stress' if the real issue is more specific than that.",
+      root?.id === "mentalClarity" ? "Stop leaving the heaviest decisions mentally open." : "Stop protecting one pattern you already know is costing too much.",
+      root?.id === "discipline" ? "Stop negotiating with yourself around the standard that matters most." : "Stop using insight as a substitute for change.",
+    ],
+    reduce: [
+      root?.id === "screenLife" ? "Reduce avoidant screen time and low-grade stimulation." : "Reduce one recurring source of noise, friction, or access.",
+      "Reduce the amount of energy spent managing appearances instead of reality.",
+    ],
+    rebuild: [...new Set([primary[1], secondary[1], "Rebuild trust with yourself through one visible non-negotiable."]).values()].filter(Boolean).slice(0, 3),
+    nonNegotiables: [
+      "One honest action each week that you would normally delay.",
+      "One protected block for reflection, not distraction.",
+      "One behavioural standard that stays in place even when your mood drops.",
+    ],
+  };
+}
+
+function nextChapterRead(root, strongest) {
+  const base = strongest.length
+    ? `The encouraging part is that ${strongest[0].title.toLowerCase()} still looks usable. This is not a situation with no strengths left to work with.`
+    : "The encouraging part is that the pattern is visible enough now to work with directly.";
+  const rootLine = root
+    ? ` The next chapter of your life likely begins the moment you stop letting ${root.title.toLowerCase()} be managed passively and start treating it as a central issue.`
+    : " The next chapter begins when one part of the pattern is turned into real behaviour.";
+  return `${base}${rootLine}`;
+}
+
+function reflectionPromptsFor(sectionId) {
+  const prompts = {
+    diagnosis: {
+      accurate: {
+        title: "Good. Now make it usable.",
+        body: "If this diagnosis feels accurate, the next move is not more agreement. It is naming where it is most visible in your life right now.",
+        followUp: "Where does this feel most true: your mind, your behaviour, or your relationships?",
+      },
+      unsure: {
+        title: "Then test the pattern, not the wording.",
+        body: "You do not need to agree with the exact label yet. What matters is whether the pattern underneath still feels familiar.",
+        followUp: "What part feels off: the diagnosis itself, the cause, or the conclusion?",
+      },
+      disagree: {
+        title: "Then say what feels more true.",
+        body: "Disagreement can still be useful if it gets you closer to a cleaner explanation instead of a safer one.",
+        followUp: "If this is not the right diagnosis, what is the more accurate one?",
+      },
+    },
+    rootIssue: {
+      accurate: {
+        title: "That matters, because this is the lever.",
+        body: "When the root issue becomes clearer, the rest of the result stops feeling like separate problems and starts feeling like one system.",
+        followUp: "Where has this root issue been shaping life more than you wanted to admit?",
+      },
+      unsure: {
+        title: "Then narrow the real bottleneck.",
+        body: "If the root issue does not feel right yet, the useful question is what seems to be creating the most drag across multiple areas at once.",
+        followUp: "What issue seems to make several other problems heavier?",
+      },
+      disagree: {
+        title: "Then challenge it properly.",
+        body: "If this root issue is wrong, replacing it with a clearer one is more useful than simply rejecting it.",
+        followUp: "What do you believe is the real bottleneck instead?",
+      },
+    },
+    firstFix: {
+      accurate: {
+        title: "Then remove ambiguity.",
+        body: "If the first fix feels accurate, the next step is to make it behavioural enough that it cannot hide behind good intentions.",
+        followUp: "What would this look like in action over the next 7 days?",
+      },
+      unsure: {
+        title: "Then make it more concrete.",
+        body: "Sometimes a good first fix still feels vague. The solution is not to discard it but to translate it into a clearer move.",
+        followUp: "What specific action would make this feel more real and less abstract?",
+      },
+      disagree: {
+        title: "Then choose the real first move.",
+        body: "If this is not the right first fix, there is probably another action you already know should come first.",
+        followUp: "What needs to happen before anything else can improve cleanly?",
+      },
+    },
+  };
+  return prompts[sectionId]?.[resultReflection(sectionId).reaction] || null;
+}
+
+function renderResultReflection(sectionId, label, sourceText, summaryLine) {
+  const state = resultReflection(sectionId);
+  const prompt = reflectionPromptsFor(sectionId);
+  const voiceActive = voiceState.activeQuestionId === `result:${sectionId}`;
+  return `<div class="results-block">
+    <h4>Work with this result: ${label}</h4>
+    <div class="result-focus">${h(sourceText)}</div>
+    <div class="results-reaction-row">
+      <button class="result-reaction ${state.reaction === "accurate" ? "is-active" : ""}" type="button" data-action="set-result-reaction" data-result-section="${sectionId}" data-value="accurate">This feels accurate</button>
+      <button class="result-reaction ${state.reaction === "unsure" ? "is-active" : ""}" type="button" data-action="set-result-reaction" data-result-section="${sectionId}" data-value="unsure">I'm not sure</button>
+      <button class="result-reaction ${state.reaction === "disagree" ? "is-active" : ""}" type="button" data-action="set-result-reaction" data-result-section="${sectionId}" data-value="disagree">I disagree</button>
+    </div>
+    ${prompt ? `<div class="result-reflection-panel"><h5>${prompt.title}</h5><p>${prompt.body}</p><p class="result-reflection-followup">${prompt.followUp}</p><textarea class="full-audit-textarea result-reflection-textarea" data-kind="result-reflection" data-result-section="${sectionId}" placeholder="Write or speak your response here.">${h(state.response || "")}</textarea><div class="voice-tools"><button class="voice-button ${voiceActive ? "is-listening" : ""}" type="button" data-action="result-voice" data-result-section="${sectionId}">${voiceActive ? "Listening..." : "Use voice input"}</button><span class="voice-copy">${voiceState.message ? h(voiceState.message) : voiceState.supported ? "Optional. Speak if it helps the thought come through more honestly." : "Voice input may not be available in this browser."}</span></div></div>` : `<div class="result-reflection-hint">${h(summaryLine)}</div>`}
+  </div>`;
+}
+
+function summary() {
+  const categoryScores = fullAuditSteps.map((step) => {
+    const score = categoryScore(step);
+    return {
+      id: step.id,
+      title: step.title,
+      score,
+      insight: score === null ? "Not enough material yet." : categoryInsight(step, score),
+    };
+  });
+  const assessed = categoryScores.filter((item) => item.score !== null);
+  const strongest = [...assessed].sort((a, b) => b.score - a.score).slice(0, 3);
+  const weakest = [...assessed].sort((a, b) => a.score - b.score).slice(0, 3);
+  const completion = Math.round((questionItems().reduce((sum, item) => sum + (answer(item.categoryId, item.id).trim() ? 1 : 0), 0) / questionItems().length) * 100);
+  const overallScore = assessed.length ? Number((assessed.reduce((sum, item) => sum + item.score, 0) / assessed.length * 10).toFixed(0)) : null;
+  const contradictions = contradictionReads(assessed);
+  const diagnosis = rootDiagnosis(weakest, assessed);
+  const patterns = patternReads(assessed);
+  const root = weakest[0];
+  const mirrored = root ? mirroredLine(root.id) : "";
+  const consequences = consequenceReads(weakest);
+  const reset = resetPlan(root, weakest);
+
+  return {
+    completion,
+    overallScore,
+    categoryScores,
+    strongest,
+    weakest,
+    diagnosis,
+    patterns,
+    contradictions,
+    frictions: weakest.map((item) => frictionPointByCategory[item.id] || `${item.title} appears to be carrying meaningful friction that is worth examining more closely.`),
+    rootIssue: root ? (rootIssueByCategory[root.id] || `${root.title} may be exposing a broader pattern that sits underneath several other answers.`) : "Root issue will appear once more of the audit is completed.",
+    actionPlan: buildActionPlan(root, weakest, contradictions),
+    mirrored,
+    strongestRead: strongestRead(strongest),
+    consequences,
+    protectivePattern: protectivePatternRead(root, contradictions),
+    firstFix: firstFixRead(root, weakest),
+    reset,
+    nextChapter: nextChapterRead(root, strongest),
+  };
+}
 function startAuditFlow() {
   fullAuditState.started = true;
   fullAuditState.currentIndex = 0;
@@ -1264,10 +1671,17 @@ function startVoiceCapture(item) {
   voiceRecognition.onresult = (event) => {
     const transcript = Array.from(event.results).map((result) => result[0]?.transcript || "").join(" ").trim();
     if (transcript) {
-      const current = answer(item.categoryId, item.id).trim();
-      const nextValue = current ? `${current}\n\n${transcript}` : transcript;
-      setAnswer(item.categoryId, item.id, nextValue);
-      voiceState.message = "Voice note added to your answer.";
+      if (item.resultSection) {
+        const current = resultReflection(item.resultSection).response.trim();
+        const nextValue = current ? `${current}\n\n${transcript}` : transcript;
+        setResultReflection(item.resultSection, { response: nextValue });
+        voiceState.message = "Voice note added to your reflection.";
+      } else {
+        const current = answer(item.categoryId, item.id).trim();
+        const nextValue = current ? `${current}\n\n${transcript}` : transcript;
+        setAnswer(item.categoryId, item.id, nextValue);
+        voiceState.message = "Voice note added to your answer.";
+      }
     } else {
       voiceState.message = "No speech was captured. You can try again or keep typing.";
     }
@@ -1296,6 +1710,37 @@ function startVoiceCapture(item) {
 function renderProgressHeader(item) {
   const progress = journeyProgress(item);
   return `<div class="full-audit-progressbar"><div class="full-audit-progresscopy"><div class="full-audit-meta"><span>${item.title || item.categoryTitle}</span><span>Section ${progress.sectionCurrent} of ${progress.sectionTotal}</span></div><div class="full-audit-submeta"><span>${item.type === "question" ? `Question ${progress.withinCurrent} of ${progress.withinTotal}` : item.type === "milestone" ? "Section complete" : "Chapter transition"}</span><span>${pacingLine(item)}</span></div></div><div class="progress-bar progress-bar-journey"><span style="width:${progress.percent}%"></span></div></div>`;
+}
+function renderDeveloperAuditMap() {
+  return `<div class="full-audit-view full-audit-card full-audit-card-results">
+    <div class="full-audit-meta"><span>Developer View</span><span>Audit map</span></div>
+    <div class="full-audit-copy-block">
+      <p class="section-kicker" style="margin-top: 0;">Section map</p>
+      <h2 class="full-audit-title">Jump anywhere in the Full Audit.</h2>
+      <p class="full-audit-lead">This view is for visual QA and content review. Normal users will not see it.</p>
+    </div>
+    <div class="results-block">
+      <div class="dev-audit-grid">
+        ${fullAuditSteps.map((step, index) => `<article class="dev-audit-card">
+          <div class="dev-audit-card-head">
+            <span class="dev-audit-index">${String(index + 1).padStart(2, "0")}</span>
+            <div>
+              <h4>${step.title}</h4>
+              <p>${step.questions.length} questions</p>
+            </div>
+          </div>
+          <div class="dev-audit-actions">
+            <button class="button button-secondary" type="button" data-action="dev-jump-intro" data-category-id="${step.id}">Open intro</button>
+            <button class="button button-primary" type="button" data-action="dev-jump-question" data-question-id="${step.questions[0]?.id || ""}">First question</button>
+          </div>
+          <div class="dev-audit-question-list">
+            ${step.questions.map((question, questionIndex) => `<button class="dev-audit-question" type="button" data-action="dev-jump-question" data-question-id="${question.id}"><span>${questionIndex + 1}</span><strong>${question.text}</strong></button>`).join("")}
+          </div>
+        </article>`).join("")}
+      </div>
+    </div>
+    <div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="close-dev-map">Back to audit</button></div>
+  </div>`;
 }
 function renderDisclaimer() { return `<div class="full-audit-view ${fullAuditRenderMode === "step" ? "is-animated" : ""} full-audit-card full-audit-card-disclaimer"><div class="full-audit-meta"><span>Full Life Audit</span><span>Before you begin</span></div><div class="full-audit-copy-block full-audit-copy-block-disclaimer"><p class="section-kicker" style="margin-top: 0;">Disclaimer</p><p class="full-audit-disclaimer-text">The Full Life Audit is a guided self-assessment. It is not therapy, crisis support, or medical advice.</p><p class="full-audit-disclaimer-text">If something feels heavy, pause when needed and come back with a clearer head.</p><p class="full-audit-disclaimer-text">Simple, direct answers are enough. The point is honest perspective, not pressure.</p><p class="audit-legal-copy">Before continuing, you can review the <a href="./privacy.html" target="_blank" rel="noreferrer">Privacy Policy</a> and <a href="./terms.html" target="_blank" rel="noreferrer">Terms &amp; Disclaimer</a>.</p></div><label class="audit-check"><input type="checkbox" data-disclaimer-checkbox="true" ${fullAuditState.disclaimerChecked ? "checked" : ""} /><span>I understand and agree</span></label><div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="exit-audit">Back</button><button class="button button-primary" type="button" data-action="accept-disclaimer" ${fullAuditState.disclaimerChecked ? "" : "disabled"}>Continue</button></div></div>`; }
 function renderIntro() {
@@ -1379,10 +1824,109 @@ function renderSection(item) { const progress = journeyProgress(item); return `<
 function renderQuestion(item) { const sectionInfo = sectionProgress(item); const value = answer(item.categoryId, item.id); const open = fullAuditState.supportOpen === item.id; const voiceActive = voiceState.activeQuestionId === item.id; const focusMode = Boolean(fullAuditState.focusMode); const skippedBefore = Boolean(fullAuditState.skippedQuestionIds?.[item.id]); return `<div class="full-audit-view ${fullAuditRenderMode === "step" ? "is-animated" : ""} full-audit-card full-audit-card-question ${focusMode ? "is-focus-mode" : ""}">${focusMode ? "" : renderProgressHeader(item)}<div class="full-audit-copy-block">${skippedBefore ? `<p class="full-audit-return-note">You skipped this earlier. Add anything you can, then continue.</p>` : ""}<h2 class="full-audit-title">${item.text}</h2>${focusMode ? "" : `<p class="full-audit-lead">${questionLead(item, sectionInfo)}</p>`}</div><div class="full-audit-input-wrap">${renderQuestionInput(item, value)}${item.inputType === "scale" ? "" : `<div class="voice-tools"><button class="voice-button ${voiceActive ? "is-listening" : ""}" type="button" data-action="voice" data-category-id="${item.categoryId}" data-question-id="${item.id}">${voiceActive ? "Listening..." : "Use voice input"}</button><span class="voice-copy">${voiceState.message ? h(voiceState.message) : voiceState.supported ? "Optional. Speak if you want a faster first draft." : "Voice input may not be available in this browser."}</span></div>`}${renderDepthPrompt(item)}${renderSkipPrompt(item)}</div>${focusMode ? "" : `<div class="auditor-inline"><button class="auditor-toggle" type="button" data-action="support" data-id="${item.id}">${open ? "Hide support" : "Need help thinking?"}</button>${open ? `<div class="auditor-drawer"><div class="auditor-drawer-block"><strong>Thinking prompts</strong><ul>${item.prompts.map((prompt) => `<li>${prompt}</li>`).join("")}</ul></div><div class="auditor-drawer-block"><strong>Why this matters</strong><p>${item.why}</p></div><div class="auditor-drawer-block"><strong>Example answer</strong><p>${item.example}</p></div><div class="auditor-drawer-block"><strong>Pacing note</strong><p>${pacingLine(item)}</p></div></div>` : ""}</div>`}<div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="back">Back</button><button class="button button-primary" type="button" data-action="next">Next</button></div></div>`; }
 function renderReflection(item) { return `<div class="full-audit-view ${fullAuditRenderMode === "step" ? "is-animated" : ""} full-audit-card full-audit-card-reflection">${renderProgressHeader(item)}<div class="full-audit-copy-block"><p class="section-kicker" style="margin-top: 0;">Reflection moment</p><h2 class="full-audit-title">${item.prompt}</h2><p class="full-audit-lead">${item.body}</p><p class="full-audit-note">Honesty matters more than perfection. A short, direct answer is enough.</p></div><div class="full-audit-input-wrap"><textarea class="full-audit-textarea full-audit-textarea-reflection" data-kind="reflection" data-reflection-id="${item.id}" placeholder="Optional. Write a few lines if something clear comes up.">${h(reflectionAnswer(item.id))}</textarea></div><div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="back">Back</button><button class="button button-primary" type="button" data-action="next">Continue</button></div></div>`; }
 function renderMilestone(item) { return `<div class="full-audit-view ${fullAuditRenderMode === "step" ? "is-animated" : ""} full-audit-card full-audit-card-milestone">${renderProgressHeader(item)}<div class="full-audit-copy-block"><p class="section-kicker" style="margin-top: 0;">Section complete</p><h2 class="full-audit-title">${item.title} is complete.</h2><p class="full-audit-lead">Keep moving. The point is not to answer perfectly. The point is to keep making the pattern more visible.</p><p class="full-audit-note">Next section: ${item.nextTitle}</p></div><div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="back">Back</button><button class="button button-primary" type="button" data-action="next">${item.nextTitle === "Results" ? "See results" : "Continue"}</button></div></div>`; }
-function renderResults() { const data = summary(); return `<div class="full-audit-view ${fullAuditRenderMode === "step" ? "is-animated" : ""} full-audit-card full-audit-card-results"><div class="full-audit-meta"><span>Full Results</span><span>${data.completion}% complete</span></div><div class="full-audit-copy-block"><h2 class="full-audit-title">Results scaffold</h2><p class="full-audit-lead">This screen is prepared for the fuller scoring engine. For now it uses the guided flow and stored answers to scaffold the final product shape.</p><p class="full-audit-note">If you need to manage this audit later, do that from the portal rather than from this screen.</p></div><div class="results-block"><h4>Category scores</h4><div class="results-grid">${data.categoryScores.map((item) => `<div class="result-tile"><span>${item.title}</span><strong>${item.score === null ? "Not yet assessed" : `${item.score}/10`}</strong></div>`).join("")}</div></div><div class="results-block"><h4>Strongest areas</h4><div class="results-list">${data.strongest.length ? data.strongest.map((item) => `<div class="result-line">${item.title} <strong>${item.score}/10</strong></div>`).join("") : `<div class="result-line">Complete more questions to surface strongest areas.</div>`}</div></div><div class="results-block"><h4>Weakest areas</h4><div class="results-list">${data.weakest.length ? data.weakest.map((item) => `<div class="result-line">${item.title} <strong>${item.score}/10</strong></div>`).join("") : `<div class="result-line">Complete more questions to surface weakest areas.</div>`}</div></div><div class="results-block"><h4>Friction points</h4><div class="results-list">${data.frictions.length ? data.frictions.map((item) => `<div class="result-line">${item}</div>`).join("") : `<div class="result-line">Friction points will appear once categories have enough material.</div>`}</div></div><div class="results-block"><h4>Root issue</h4><div class="result-focus">${data.rootIssue}</div></div><div class="results-block"><h4>Action plan</h4><div class="results-list">${data.actionPlan.map((item) => `<div class="result-line">${item}</div>`).join("")}</div></div><div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="portal">Back to portal</button><button class="button button-primary" type="button" data-action="review">Review session</button></div></div>`; }
+function renderResults() {
+  const data = summary();
+  return `<div class="full-audit-view ${fullAuditRenderMode === "step" ? "is-animated" : ""} full-audit-card full-audit-card-results">
+    <div class="full-audit-meta"><span>Full Results</span><span>${data.completion}% complete</span></div>
+    <div class="full-audit-copy-block">
+      <p class="section-kicker" style="margin-top: 0;">Opening diagnosis</p>
+      <h2 class="full-audit-title">${h(data.diagnosis.headline)}</h2>
+      <p class="full-audit-lead">${h(data.diagnosis.summary)}</p>
+      <p class="full-audit-note">${data.overallScore === null ? "Complete more answers to strengthen the diagnostic confidence." : `Current overall read: ${data.overallScore}/100. This is a directional diagnostic, not a fixed verdict.`}</p>
+    </div>
+    <div class="results-block">
+      <h4>What your answers suggest</h4>
+      <div class="result-focus">${data.mirrored ? `One of the clearest lines in your own words was: "${h(data.mirrored)}"` : "The answers point to a recognisable pattern beneath the surface, even where the wording was brief."}</div>
+    </div>
+    <div class="results-block">
+      <h4>What is actually holding up</h4>
+      <div class="result-focus">${h(data.strongestRead)}</div>
+    </div>
+    <div class="results-block">
+      <h4>Category scores</h4>
+      <div class="results-grid">${data.categoryScores.map((item) => `<div class="result-tile"><span>${item.title}</span><strong>${item.score === null ? "Not yet assessed" : `${item.score}/10`}</strong></div>`).join("")}</div>
+    </div>
+    <div class="results-block">
+      <h4>Strongest areas</h4>
+      <div class="results-list">${data.strongest.length ? data.strongest.map((item) => `<div class="result-line">${item.title} <strong>${item.score}/10</strong></div><div class="result-line result-line-detail">${item.insight}</div>`).join("") : `<div class="result-line">Complete more questions to surface strongest areas.</div>`}</div>
+    </div>
+    <div class="results-block">
+      <h4>Weakest areas</h4>
+      <div class="results-list">${data.weakest.length ? data.weakest.map((item) => `<div class="result-line">${item.title} <strong>${item.score}/10</strong></div><div class="result-line result-line-detail">${item.insight}</div>`).join("") : `<div class="result-line">Complete more questions to surface weakest areas.</div>`}</div>
+    </div>
+    <div class="results-block">
+      <h4>Pattern read</h4>
+      <div class="results-list">${data.patterns.length ? data.patterns.map((item) => `<div class="result-line">${item}</div>`).join("") : `<div class="result-line">A clearer pattern read appears once more of the audit is completed.</div>`}</div>
+    </div>
+    <div class="results-block">
+      <h4>What this is likely doing to your life right now</h4>
+      <div class="results-list">${data.consequences.length ? data.consequences.map((item) => `<div class="result-line">${item}</div>`).join("") : `<div class="result-line">The main effects usually show up in clarity, self-trust, energy, and the quality of your relationships with yourself and others.</div>`}</div>
+    </div>
+    <div class="results-block">
+      <h4>Friction points</h4>
+      <div class="results-list">${data.frictions.length ? data.frictions.map((item) => `<div class="result-line">${item}</div>`).join("") : `<div class="result-line">Friction points will appear once categories have enough material.</div>`}</div>
+    </div>
+    <div class="results-block">
+      <h4>Contradictions worth noticing</h4>
+      <div class="results-list">${data.contradictions.length ? data.contradictions.map((item) => `<div class="result-line">${item}</div>`).join("") : `<div class="result-line">No major contradiction pattern stood out more strongly than the others.</div>`}</div>
+    </div>
+    <div class="results-block">
+      <h4>Likely root issue</h4>
+      <div class="result-focus">${data.rootIssue}</div>
+    </div>
+    ${renderResultReflection("diagnosis", "Core diagnosis", data.diagnosis.headline, "Let the first reaction come through before you try to sound measured.")}
+    ${renderResultReflection("rootIssue", "Root issue", data.rootIssue, "What you resist here may be as informative as what you agree with.")}
+    <div class="results-block">
+      <h4>The pattern you may be tempted to protect</h4>
+      <div class="result-focus">${h(data.protectivePattern)}</div>
+    </div>
+    <div class="results-block">
+      <h4>What to fix first</h4>
+      <div class="result-focus">${h(data.firstFix)}</div>
+    </div>
+    ${renderResultReflection("firstFix", "First fix", data.firstFix, "If this does not feel like the right first move, name the one that does.")}
+    <div class="results-block">
+      <h4>What to do next</h4>
+      <div class="results-list">${data.actionPlan.map((item) => `<div class="result-line">${item}</div>`).join("")}</div>
+    </div>
+    <div class="results-block">
+      <h4>30-day reset</h4>
+      <div class="results-subblock">
+        <strong>Start</strong>
+        <div class="results-list">${data.reset.start.map((item) => `<div class="result-line">${item}</div>`).join("")}</div>
+      </div>
+      <div class="results-subblock">
+        <strong>Stop</strong>
+        <div class="results-list">${data.reset.stop.map((item) => `<div class="result-line">${item}</div>`).join("")}</div>
+      </div>
+      <div class="results-subblock">
+        <strong>Reduce</strong>
+        <div class="results-list">${data.reset.reduce.map((item) => `<div class="result-line">${item}</div>`).join("")}</div>
+      </div>
+      <div class="results-subblock">
+        <strong>Rebuild</strong>
+        <div class="results-list">${data.reset.rebuild.map((item) => `<div class="result-line">${item}</div>`).join("")}</div>
+      </div>
+      <div class="results-subblock">
+        <strong>Non-negotiables</strong>
+        <div class="results-list">${data.reset.nonNegotiables.map((item) => `<div class="result-line">${item}</div>`).join("")}</div>
+      </div>
+    </div>
+    <div class="results-block">
+      <h4>Next chapter</h4>
+      <div class="result-focus">${h(data.nextChapter)}</div>
+    </div>
+    <div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="portal">Back to portal</button><button class="button button-primary" type="button" data-action="review">Review session</button></div>
+  </div>`;
+}
 function renderSkippedReview() { const pending = pendingSkippedQuestions(); return `<div class="full-audit-view ${fullAuditRenderMode === "step" ? "is-animated" : ""} full-audit-card full-audit-card-milestone"><div class="full-audit-meta"><span>Full Life Audit</span><span>Skipped questions</span></div><div class="full-audit-copy-block"><p class="section-kicker" style="margin-top: 0;">Before results</p><h2 class="full-audit-title">A few questions still need an answer.</h2><p class="full-audit-lead">${pending.length === 1 ? "You skipped 1 question earlier." : `You skipped ${pending.length} questions earlier.`} We can come back to them now before the audit completes.</p><p class="full-audit-note">You do not need perfect answers. Just give each one something real.</p></div><div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="back">Back</button><button class="button button-primary" type="button" data-action="review-skipped">Return to skipped questions</button></div></div>`; }
 function renderFullAudit() {
   syncAuditChrome();
+  if (auditDeveloperMode && auditDeveloperPanelOpen) {
+    fullAuditRoot.innerHTML = renderDeveloperAuditMap();
+    syncAuditChrome();
+    return;
+  }
   if (!fullAuditState.disclaimerAccepted) {
     fullAuditRoot.innerHTML = renderDisclaimer();
     syncAuditChrome();
@@ -1437,6 +1981,7 @@ if (fullAuditRoot) {
       setAnswer(target.dataset.categoryId, target.dataset.questionId, target.value);
     }
     if (target.dataset.kind === "reflection") setReflectionAnswer(target.dataset.reflectionId, target.value);
+    if (target.dataset.kind === "result-reflection") setResultReflection(target.dataset.resultSection, { response: target.value });
   });
 
 }
@@ -1448,6 +1993,44 @@ if (fullAuditMode) {
     const action = target.dataset.action;
     if (action === "exit-audit") {
       exitFullAudit();
+      return;
+    }
+    if (action === "toggle-dev-map") {
+      auditDeveloperPanelOpen = !auditDeveloperPanelOpen;
+      renderAudit("static");
+      return;
+    }
+    if (action === "close-dev-map") {
+      auditDeveloperPanelOpen = false;
+      renderAudit("static");
+      return;
+    }
+    if (action === "dev-jump-intro") {
+      const index = flowIndexForSectionIntro(target.dataset.categoryId);
+      if (index >= 0) {
+        auditDeveloperPanelOpen = false;
+        fullAuditState.started = true;
+        fullAuditState.currentIndex = index;
+        fullAuditState.supportOpen = null;
+        fullAuditState.depthPromptQuestionId = null;
+        fullAuditState.skipPromptQuestionId = null;
+        saveState();
+        renderAudit("step");
+      }
+      return;
+    }
+    if (action === "dev-jump-question") {
+      const index = flowIndexForQuestion(target.dataset.questionId);
+      if (index >= 0) {
+        auditDeveloperPanelOpen = false;
+        fullAuditState.started = true;
+        fullAuditState.currentIndex = index;
+        fullAuditState.supportOpen = null;
+        fullAuditState.depthPromptQuestionId = null;
+        fullAuditState.skipPromptQuestionId = null;
+        saveState();
+        renderAudit("step");
+      }
       return;
     }
     if (action === "portal") {
@@ -1469,6 +2052,17 @@ if (fullAuditMode) {
       if (item?.type === "question") {
         startVoiceCapture(item);
       }
+      return;
+    }
+    if (action === "result-voice") {
+      startVoiceCapture({ id: `result:${target.dataset.resultSection}`, resultSection: target.dataset.resultSection });
+      return;
+    }
+    if (action === "set-result-reaction") {
+      setResultReflection(target.dataset.resultSection, {
+        reaction: target.dataset.value,
+      });
+      renderAudit("static");
       return;
     }
     if (action === "toggle-focus-mode") {
