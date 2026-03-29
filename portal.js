@@ -144,10 +144,15 @@ function renderPortal() {
                 : portalState.user
                 ? `
                   <div class="portal-session">
-                    <div class="portal-session-card">
+                    <div class="portal-session-card portal-session-card-wide">
                       <p class="section-kicker">Signed in</p>
                       <h2>${hp(userName)}</h2>
                       <p>${hp(portalState.user.email || "")}</p>
+                      <div class="portal-chip-row">
+                        <span class="portal-chip">Secure sign-in</span>
+                        <span class="portal-chip">Saved progress</span>
+                        <span class="portal-chip">Private access</span>
+                      </div>
                       <div class="portal-actions">
                         <a class="button button-primary" href="./index.html">Open Life Audit</a>
                         <button class="button button-secondary" type="button" data-portal-action="signout">Sign out</button>
@@ -155,18 +160,9 @@ function renderPortal() {
                     </div>
                     <div class="portal-session-card">
                       <p class="section-kicker">Saved progress</p>
-                      <h2>Cloud drafts</h2>
+                      <h2>Your saved audit</h2>
+                      <p>Return to where you left off without losing the thread.</p>
                       <div class="portal-drafts">${draftRows}</div>
-                    </div>
-                    <div class="portal-session-card">
-                      <p class="section-kicker">Member space</p>
-                      <h2>Private and secure</h2>
-                      <p>Your saved audit progress is attached to your account and available when you return. This area is designed to keep your access simple, calm, and contained.</p>
-                      <div class="portal-chip-row">
-                        <span class="portal-chip">Secure sign-in</span>
-                        <span class="portal-chip">Saved progress</span>
-                        <span class="portal-chip">Private access</span>
-                      </div>
                     </div>
                     <div class="portal-session-card">
                       <p class="section-kicker">Audit settings</p>
@@ -184,7 +180,7 @@ function renderPortal() {
                         <button class="button button-secondary" type="button" data-portal-action="restart-audit" ${canRestart ? "" : "disabled"}>Start again</button>
                       </div>
                     </div>
-                    <div class="portal-session-card">
+                    <div class="portal-session-card portal-session-card-compact">
                       <p class="section-kicker">Preferences</p>
                       <h2>Appearance</h2>
                       <p>Choose the portal view that feels calmer and easier to use.</p>
@@ -193,7 +189,7 @@ function renderPortal() {
                         <button class="portal-theme-button ${portalState.theme === "light" ? "is-active" : ""}" type="button" data-portal-theme="light">Light mode</button>
                       </div>
                     </div>
-                    <div class="portal-session-card">
+                    <div class="portal-session-card portal-session-card-compact">
                       <p class="section-kicker">Policies</p>
                       <h2>Privacy and terms</h2>
                       <p>Review how your information is handled and the current product terms.</p>

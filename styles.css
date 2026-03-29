@@ -2721,9 +2721,9 @@ button {
 
 .portal-page[data-theme="light"] {
   background:
-    radial-gradient(circle at top, rgba(188, 170, 140, 0.14), transparent 34%),
-    linear-gradient(180deg, #f3eee7 0%, #ece5db 100%);
-  color: #2a2723;
+    radial-gradient(circle at top, rgba(161, 143, 118, 0.12), transparent 34%),
+    linear-gradient(180deg, #ded5c8 0%, #d5cabc 100%);
+  color: #221f1b;
 }
 
 .portal-card {
@@ -2736,9 +2736,9 @@ button {
 
 .portal-page[data-theme="light"] .portal-card,
 .portal-page[data-theme="light"] .legal-card {
-  background: rgba(255, 251, 246, 0.88);
-  border-color: rgba(73, 63, 52, 0.12);
-  box-shadow: 0 24px 60px rgba(73, 63, 52, 0.08);
+  background: rgba(248, 242, 234, 0.9);
+  border-color: rgba(73, 63, 52, 0.16);
+  box-shadow: 0 24px 60px rgba(73, 63, 52, 0.1);
 }
 
 .portal-page[data-theme="light"] .legal-lead,
@@ -2772,12 +2772,12 @@ button {
 .portal-page[data-theme="light"] .portal-auth-panel,
 .portal-page[data-theme="light"] .portal-security-note,
 .portal-page[data-theme="light"] .portal-toggle {
-  background: rgba(255, 255, 255, 0.5);
-  border-color: rgba(73, 63, 52, 0.12);
+  background: rgba(255, 250, 244, 0.62);
+  border-color: rgba(73, 63, 52, 0.16);
 }
 
 .portal-page[data-theme="light"] .portal-toggle-button {
-  color: rgba(42, 39, 35, 0.68);
+  color: rgba(34, 31, 27, 0.82);
 }
 
 .portal-page[data-theme="light"] .portal-toggle-button.is-active,
@@ -2933,6 +2933,7 @@ button {
 .portal-session {
   margin-top: 26px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
 }
 
 .portal-session-card,
@@ -2945,7 +2946,15 @@ button {
 }
 
 .portal-session-card {
-  padding: 22px;
+  padding: 18px 20px;
+}
+
+.portal-session-card-wide {
+  grid-column: 1 / -1;
+}
+
+.portal-session-card-compact .portal-actions {
+  margin-top: 14px;
 }
 
 .portal-chip-row {
@@ -2968,8 +2977,8 @@ button {
 
 .portal-page[data-theme="light"] .portal-chip {
   border-color: rgba(73, 63, 52, 0.12);
-  color: rgba(42, 39, 35, 0.76);
-  background: rgba(255, 255, 255, 0.52);
+  color: rgba(34, 31, 27, 0.8);
+  background: rgba(255, 255, 255, 0.66);
 }
 
 .portal-session-card h2 {
