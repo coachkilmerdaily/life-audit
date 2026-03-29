@@ -2416,6 +2416,34 @@ button {
   padding: 14px 16px;
 }
 
+.pricing-details {
+  margin-top: 18px;
+  border-top: 1px solid rgba(243, 239, 232, 0.08);
+  padding-top: 16px;
+}
+
+.pricing-details summary {
+  list-style: none;
+  cursor: pointer;
+  color: rgba(243, 239, 232, 0.78);
+  font-weight: 600;
+}
+
+.pricing-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.pricing-details-body {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.pricing-detail-line {
+  color: var(--muted);
+  line-height: 1.75;
+}
+
 .pricing-value {
   margin: 20px 0 0;
   color: var(--muted);
