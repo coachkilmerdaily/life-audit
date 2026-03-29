@@ -74,6 +74,10 @@ function fullAuditProgressSummary(fullState) {
     return { label: "Ready to begin", percent: 0 };
   }
 
+  if (!totalQuestions) {
+    return { label: `${answeredCount} answers saved`, percent: 0 };
+  }
+
   return { label: `${answeredCount} of ${totalQuestions} questions answered`, percent };
 }
 
@@ -175,6 +179,11 @@ function renderPortal() {
                         <div class="portal-progress-bar"><span style="width: ${progress.percent}%;"></span></div>
                         <strong>${progress.percent}%</strong>
                       </div>
+                      ${
+                        fullState
+                          ? `<div class="portal-progress-meta"><span>Last updated ${new Date(portalState.fullDraft.updated_at).toLocaleString()}</span></div>`
+                          : ""
+                      }
                       <div class="portal-chip-row">
                         <span class="portal-chip">Secure sign-in</span>
                         <span class="portal-chip">Saved progress</span>
@@ -185,46 +194,43 @@ function renderPortal() {
                         <button class="button button-secondary" type="button" data-portal-action="signout">Sign out</button>
                       </div>
                     </div>
-                    <div class="portal-session-card">
-                      <p class="section-kicker">Saved progress</p>
-                      <h2>Your saved audit</h2>
-                      <p>Return to where you left off without losing the thread.</p>
-                      <div class="portal-drafts">${draftRows}</div>
-                    </div>
-                    <div class="portal-session-card">
-                      <p class="section-kicker">Audit settings</p>
-                      <h2>Manage your Full Audit</h2>
-                      <p>${
-                        !fullState
-                          ? "No Full Audit draft yet."
-                          : fullState.completedAt
-                            ? "This audit has been completed. Self-serve restart is locked."
-                            : restartCount >= 1
-                              ? "Your one self-serve restart has already been used."
-                              : "You can clear this audit once and begin again if needed."
-                      }</p>
-                      <div class="portal-actions">
-                        <button class="button button-secondary" type="button" data-portal-action="restart-audit" ${canRestart ? "" : "disabled"}>Start again</button>
+                    <details class="portal-collapsible" ${!fullState ? "" : "open"}>
+                      <summary>
+                        <span>Manage account</span>
+                        <span class="portal-collapsible-icon" aria-hidden="true"></span>
+                      </summary>
+                      <div class="portal-collapsible-body">
+                        <p>${
+                          !fullState
+                            ? "No Full Audit draft yet."
+                            : fullState.completedAt
+                              ? "This audit has been completed. Self-serve restart is locked."
+                              : restartCount >= 1
+                                ? "Your one self-serve restart has already been used."
+                                : "You can clear this audit once and begin again if needed."
+                        }</p>
+                        <div class="portal-theme-toggle">
+                          <button class="portal-theme-button ${portalState.theme === "dark" ? "is-active" : ""}" type="button" data-portal-theme="dark">Dark mode</button>
+                          <button class="portal-theme-button ${portalState.theme === "light" ? "is-active" : ""}" type="button" data-portal-theme="light">Light mode</button>
+                        </div>
+                        <div class="portal-actions">
+                          <button class="button button-secondary" type="button" data-portal-action="restart-audit" ${canRestart ? "" : "disabled"}>Start again</button>
+                        </div>
                       </div>
-                    </div>
-                    <div class="portal-session-card portal-session-card-compact">
-                      <p class="section-kicker">Preferences</p>
-                      <h2>Appearance</h2>
-                      <p>Choose the portal view that feels calmer and easier to use.</p>
-                      <div class="portal-theme-toggle">
-                        <button class="portal-theme-button ${portalState.theme === "dark" ? "is-active" : ""}" type="button" data-portal-theme="dark">Dark mode</button>
-                        <button class="portal-theme-button ${portalState.theme === "light" ? "is-active" : ""}" type="button" data-portal-theme="light">Light mode</button>
+                    </details>
+                    <details class="portal-collapsible">
+                      <summary>
+                        <span>Privacy and terms</span>
+                        <span class="portal-collapsible-icon" aria-hidden="true"></span>
+                      </summary>
+                      <div class="portal-collapsible-body">
+                        <p>Review how your information is handled and the current product terms.</p>
+                        <div class="portal-actions">
+                          <a class="button button-secondary" href="./privacy.html">Privacy Policy</a>
+                          <a class="button button-secondary" href="./terms.html">Terms &amp; Disclaimer</a>
+                        </div>
                       </div>
-                    </div>
-                    <div class="portal-session-card portal-session-card-compact">
-                      <p class="section-kicker">Policies</p>
-                      <h2>Privacy and terms</h2>
-                      <p>Review how your information is handled and the current product terms.</p>
-                      <div class="portal-actions">
-                        <a class="button button-secondary" href="./privacy.html">Privacy Policy</a>
-                        <a class="button button-secondary" href="./terms.html">Terms &amp; Disclaimer</a>
-                      </div>
-                    </div>
+                    </details>
                   </div>
                 `
                 : `

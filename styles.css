@@ -2932,8 +2932,8 @@ button {
 
 .portal-session {
   margin-top: 26px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  grid-template-columns: 1fr;
+  gap: 12px;
 }
 
 .portal-session-card,
@@ -2949,10 +2949,6 @@ button {
   padding: 18px 20px;
 }
 
-.portal-session-card-wide {
-  grid-column: 1 / -1;
-}
-
 .portal-progress {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -2963,6 +2959,13 @@ button {
 
 .portal-progress strong {
   color: var(--text);
+  font-size: 0.95rem;
+}
+
+.portal-progress-meta {
+  margin-top: 10px;
+  color: rgba(243, 239, 232, 0.62);
+  line-height: 1.6;
   font-size: 0.95rem;
 }
 
@@ -2988,10 +2991,6 @@ button {
   background: linear-gradient(90deg, rgba(42, 39, 35, 0.38), rgba(42, 39, 35, 0.78));
 }
 
-.portal-session-card-compact .portal-actions {
-  margin-top: 14px;
-}
-
 .portal-chip-row {
   display: flex;
   flex-wrap: wrap;
@@ -3014,6 +3013,91 @@ button {
   border-color: rgba(73, 63, 52, 0.12);
   color: rgba(34, 31, 27, 0.8);
   background: rgba(255, 255, 255, 0.66);
+}
+
+.portal-page[data-theme="light"] .portal-progress-meta {
+  color: rgba(34, 31, 27, 0.7);
+}
+
+.portal-collapsible {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  overflow: hidden;
+}
+
+.portal-collapsible summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 18px;
+  list-style: none;
+  cursor: pointer;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.portal-collapsible summary::-webkit-details-marker {
+  display: none;
+}
+
+.portal-collapsible-icon {
+  position: relative;
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.portal-collapsible-icon::before,
+.portal-collapsible-icon::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 1.5px;
+  border-radius: 999px;
+  background: rgba(243, 239, 232, 0.62);
+  transform: translate(-50%, -50%);
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+
+.portal-collapsible-icon::after {
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+
+.portal-collapsible[open] .portal-collapsible-icon::after {
+  opacity: 0;
+  transform: translate(-50%, -50%) rotate(90deg) scaleX(0);
+}
+
+.portal-collapsible-body {
+  padding: 0 18px 18px;
+}
+
+.portal-collapsible-body p {
+  margin: 0 0 14px;
+  color: var(--muted);
+  line-height: 1.75;
+}
+
+.portal-page[data-theme="light"] .portal-collapsible {
+  background: rgba(255, 250, 244, 0.62);
+  border-color: rgba(73, 63, 52, 0.16);
+}
+
+.portal-page[data-theme="light"] .portal-collapsible summary {
+  color: #221f1b;
+}
+
+.portal-page[data-theme="light"] .portal-collapsible-icon::before,
+.portal-page[data-theme="light"] .portal-collapsible-icon::after {
+  background: rgba(34, 31, 27, 0.62);
+}
+
+.portal-page[data-theme="light"] .portal-collapsible-body p {
+  color: rgba(34, 31, 27, 0.72);
 }
 
 .portal-session-card h2 {
