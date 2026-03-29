@@ -348,6 +348,7 @@ function renderSite() {
           <nav class="topbar-links" aria-label="Primary">
             <a href="#mini-audit">Free Trial Audit</a>
             <a href="#audit" data-start-full-audit="true">Unlock Full Audit</a>
+            <a href="./portal.html">Portal</a>
             <a href="#pricing">Pricing</a>
             <a href="#faq">FAQ</a>
           </nav>
@@ -433,7 +434,7 @@ function renderSite() {
     <section class="section" id="flow"><div class="container"><div class="section-heading reveal"><p class="section-kicker">What happens</p><h2>A clear path from first insight to next steps.</h2><p>Move from an opening diagnosis of where life stands to a clearer understanding of what needs attention.</p></div><div class="journey-visual reveal"><div class="journey-track">${steps.map((item) => `<article class="journey-node"><span>${item.step}</span><strong>${item.title}</strong><p>${item.body}</p></article>`).join("")}</div><div class="journey-outcome"><p class="journey-label">End result</p><h3>Clarity on what is working, what is draining you, and what to do next.</h3><div class="journey-outcome-points"><span>Clearer direction</span><span>Visible friction points</span><span>A practical next step</span></div></div></div></div></section>
     <section class="section" id="pricing"><div class="container"><div class="section-heading reveal"><p class="section-kicker">Pricing</p><h2>One clear step from surface-level answers to real clarity</h2><p>Start with an initial insight. If it resonates, go deeper.</p></div><div class="pricing-grid">${pricing.map((tier) => `<article class="pricing-card reveal ${tier.featured ? "featured" : ""}"><div class="price-row"><div><p class="price-tagline">${tier.subtitle}</p><h3>${tier.name}</h3></div><div class="price-value">${tier.price}</div></div><div class="pricing-list">${tier.items.map((item) => `<div class="pricing-item">${item}</div>`).join("")}</div>${tier.value ? `<p class="pricing-value">${tier.value}</p>` : ""}<a class="button ${tier.featured ? "" : "button-primary"}" href="${tier.featured ? "#audit" : "#mini-audit"}"${tier.featured ? ' data-start-full-audit="true"' : ""}>${tier.cta}</a></article>`).join("")}</div><p class="pricing-trust reveal">Built for people who want answers, not endless sessions.</p></div></section>
     <section class="section section-muted" id="faq"><div class="container"><div class="faq-layout"><div class="faq-copy reveal"><p class="section-kicker">FAQ</p><h2>Questions you may have before you start.</h2><p>Everything you need to know before taking the audit.</p></div><div class="faq-list">${faqs.map((item, index) => `<details class="faq-item reveal" ${index === 0 ? "open" : ""}><summary><span>${item.q}</span><span class="faq-toggle" aria-hidden="true"></span></summary><div class="faq-answer"><p>${item.a}</p></div></details>`).join("")}</div></div></div></section>
-    <footer class="footer"><div class="container"><div class="footer-row reveal"><div class="brand"><span class="brand-mark" aria-hidden="true"></span><span>LIFE AUDIT</span></div><div class="footer-links"><a class="footer-link" href="./privacy.html">Privacy Policy</a><a class="footer-link" href="./terms.html">Terms &amp; Disclaimer</a><a class="footer-cta" href="#top">Back to top</a></div></div></div></footer>
+    <footer class="footer"><div class="container"><div class="footer-row reveal"><div class="brand"><span class="brand-mark" aria-hidden="true"></span><span>LIFE AUDIT</span></div><div class="footer-links"><a class="footer-link" href="./portal.html">Portal</a><a class="footer-link" href="./privacy.html">Privacy Policy</a><a class="footer-link" href="./terms.html">Terms &amp; Disclaimer</a><a class="footer-cta" href="#top">Back to top</a></div></div></div></footer>
   </div>
   <div class="resume-overlay" id="full-audit-resume-overlay" hidden></div>
   <section class="audit-mode" id="full-audit-mode" hidden aria-label="Full Life Audit session">
@@ -517,6 +518,9 @@ function saveMiniAuditUser() {
     window.localStorage.setItem("lifeAudit.miniAuditUser", JSON.stringify(miniAuditState.user));
   } catch {}
   window.lifeAuditUser = { ...miniAuditState.user };
+  if (fullAuditState?.user) {
+    fullAuditState.user = { ...fullAuditState.user, ...miniAuditState.user };
+  }
 }
 
 function mentalLoadScore(areas) {
@@ -798,6 +802,8 @@ let voiceRecognition = null;
 let introTypingRun = 0;
 let fullAuditEntryRequested = false;
 let fullAuditRenderMode = "static";
+let cloudSyncTimer = null;
+let cloudBootstrapStarted = false;
 
 function readMiniAuditUser() {
   try {
@@ -817,6 +823,8 @@ function defaultFullAuditState() {
   return {
     started: false,
     currentIndex: 0,
+    restartCount: 0,
+    completedAt: null,
     answers: {},
     reflections: {},
     supportOpen: null,
@@ -840,6 +848,8 @@ function loadState() {
     return {
       started: Boolean(parsed.started),
       currentIndex: Number.isInteger(parsed.currentIndex) ? parsed.currentIndex : 0,
+      restartCount: Number.isInteger(parsed.restartCount) ? parsed.restartCount : 0,
+      completedAt: typeof parsed.completedAt === "string" ? parsed.completedAt : null,
       answers: parsed.answers || {},
       reflections: parsed.reflections || {},
       supportOpen: parsed.supportOpen || null,
@@ -867,6 +877,52 @@ function saveState() {
   } catch {
     // Keep the site usable when localStorage is unavailable from a local file context.
   }
+  queueCloudSync();
+}
+
+function normalizedCloudState(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const fallbackUser = readMiniAuditUser();
+  return {
+    started: Boolean(raw.started),
+    currentIndex: Number.isInteger(raw.currentIndex) ? raw.currentIndex : 0,
+    restartCount: Number.isInteger(raw.restartCount) ? raw.restartCount : 0,
+    completedAt: typeof raw.completedAt === "string" ? raw.completedAt : null,
+    answers: raw.answers || {},
+    reflections: raw.reflections || {},
+    supportOpen: raw.supportOpen || null,
+    depthPromptQuestionId: typeof raw.depthPromptQuestionId === "string" ? raw.depthPromptQuestionId : null,
+    depthPromptBypass: raw.depthPromptBypass || {},
+    skipPromptQuestionId: typeof raw.skipPromptQuestionId === "string" ? raw.skipPromptQuestionId : null,
+    skippedQuestionIds: raw.skippedQuestionIds || {},
+    focusMode: Boolean(raw.focusMode),
+    disclaimerChecked: Boolean(raw.disclaimerChecked),
+    disclaimerAccepted: Boolean(raw.disclaimerAccepted),
+    user: {
+      name: typeof raw.user?.name === "string" ? raw.user.name : fallbackUser.name,
+      email: typeof raw.user?.email === "string" ? raw.user.email : fallbackUser.email,
+    },
+  };
+}
+
+function cloudSyncPayload() {
+  syncFullAuditUser();
+  return {
+    ...fullAuditState,
+    syncedAt: new Date().toISOString(),
+  };
+}
+
+function queueCloudSync() {
+  if (!window.lifeAuditCloud?.configured) return;
+  window.clearTimeout(cloudSyncTimer);
+  cloudSyncTimer = window.setTimeout(async () => {
+    const cloud = window.lifeAuditCloud;
+    if (!cloud) return;
+    const { session } = await cloud.getSession();
+    if (!session?.user) return;
+    await cloud.saveDraft("full", cloudSyncPayload());
+  }, 650);
 }
 function syncFullAuditUser() {
   const miniUser = readMiniAuditUser();
@@ -883,6 +939,23 @@ function hasSavedFullAuditProgress() {
   const hasReflections = Object.values(fullAuditState.reflections || {}).some((value) => String(value || "").trim());
   return hasAnswers || hasReflections || fullAuditState.currentIndex > 0 || fullAuditState.started || fullAuditState.disclaimerAccepted;
 }
+async function bootstrapCloudFullAuditState() {
+  if (cloudBootstrapStarted || !window.lifeAuditCloud?.configured) return;
+  cloudBootstrapStarted = true;
+  const cloud = window.lifeAuditCloud;
+  const { session } = await cloud.getSession();
+  if (!session?.user) return;
+  const { data, error } = await cloud.loadDraft("full");
+  if (error || !data?.state) return;
+  if (hasSavedFullAuditProgress()) return;
+  const remoteState = normalizedCloudState(data.state);
+  if (!remoteState) return;
+  Object.assign(fullAuditState, remoteState);
+  try {
+    window.localStorage.setItem(storageKey, JSON.stringify(fullAuditState));
+  } catch {}
+  renderAudit("static");
+}
 function renderResumePrompt() {
   if (!resumeOverlay) return;
   const firstName = (fullAuditState.user?.name || "").trim().split(/\s+/)[0];
@@ -890,10 +963,25 @@ function renderResumePrompt() {
     <div class="resume-dialog">
       <p class="section-kicker" style="margin-top: 0;">Full Life Audit</p>
       <h3>Resume your Full Audit?</h3>
-      <p>${firstName ? `${h(firstName)}, your previous session is still here.` : "Your previous session is still here."} You can continue from where you left off, or clear it and begin again.</p>
+      <p>${firstName ? `${h(firstName)}, your previous session is still here.` : "Your previous session is still here."} You can continue where you left off, or return to the portal to manage this audit.</p>
       <div class="resume-actions">
-        <button class="button button-secondary" type="button" data-resume-action="restart">Start over</button>
+        <button class="button button-secondary" type="button" data-resume-action="portal">Back to portal</button>
         <button class="button button-primary" type="button" data-resume-action="resume">Resume</button>
+      </div>
+    </div>
+  `;
+  resumeOverlay.hidden = false;
+}
+function renderAuthGatePrompt() {
+  if (!resumeOverlay) return;
+  resumeOverlay.innerHTML = `
+    <div class="resume-dialog">
+      <p class="section-kicker" style="margin-top: 0;">Full Life Audit</p>
+      <h3>Sign in to access the Full Audit</h3>
+      <p>Create an account or sign in first. This keeps the Full Life Audit saved to your portal and tied to the right user before we add the paywall later.</p>
+      <div class="resume-actions">
+        <button class="button button-secondary" type="button" data-resume-action="cancel">Back</button>
+        <button class="button button-primary" type="button" data-resume-action="portal">Go to portal</button>
       </div>
     </div>
   `;
@@ -913,8 +1001,15 @@ function setAuditMode(isActive) {
     window.scrollTo({ top: 0, behavior: "auto" });
   }
 }
-function enterFullAudit() {
+async function enterFullAudit() {
   fullAuditEntryRequested = true;
+  if (window.lifeAuditCloud?.configured) {
+    const { session } = await window.lifeAuditCloud.getSession();
+    if (!session?.user) {
+      renderAuthGatePrompt();
+      return;
+    }
+  }
   if (hasSavedFullAuditProgress()) {
     renderResumePrompt();
     return;
@@ -936,6 +1031,7 @@ function startFreshFullAudit() {
   fullAuditState.focusMode = false;
   fullAuditState.disclaimerChecked = false;
   fullAuditState.disclaimerAccepted = false;
+  fullAuditState.completedAt = null;
   clearVoiceState();
   saveState();
   setAuditMode(true);
@@ -1288,7 +1384,7 @@ function renderSection(item) { const progress = journeyProgress(item); return `<
 function renderQuestion(item) { const sectionInfo = sectionProgress(item); const value = answer(item.categoryId, item.id); const open = fullAuditState.supportOpen === item.id; const voiceActive = voiceState.activeQuestionId === item.id; const focusMode = Boolean(fullAuditState.focusMode); const skippedBefore = Boolean(fullAuditState.skippedQuestionIds?.[item.id]); return `<div class="full-audit-view ${fullAuditRenderMode === "step" ? "is-animated" : ""} full-audit-card full-audit-card-question ${focusMode ? "is-focus-mode" : ""}">${focusMode ? "" : renderProgressHeader(item)}<div class="full-audit-copy-block">${skippedBefore ? `<p class="full-audit-return-note">You skipped this earlier. Add anything you can, then continue.</p>` : ""}<h2 class="full-audit-title">${item.text}</h2>${focusMode ? "" : `<p class="full-audit-lead">${questionLead(item, sectionInfo)}</p>`}</div><div class="full-audit-input-wrap">${renderQuestionInput(item, value)}${item.inputType === "scale" ? "" : `<div class="voice-tools"><button class="voice-button ${voiceActive ? "is-listening" : ""}" type="button" data-action="voice" data-category-id="${item.categoryId}" data-question-id="${item.id}">${voiceActive ? "Listening..." : "Use voice input"}</button><span class="voice-copy">${voiceState.message ? h(voiceState.message) : voiceState.supported ? "Optional. Speak if you want a faster first draft." : "Voice input may not be available in this browser."}</span></div>`}${renderDepthPrompt(item)}${renderSkipPrompt(item)}</div>${focusMode ? "" : `<div class="auditor-inline"><button class="auditor-toggle" type="button" data-action="support" data-id="${item.id}">${open ? "Hide support" : "Need help thinking?"}</button>${open ? `<div class="auditor-drawer"><div class="auditor-drawer-block"><strong>Thinking prompts</strong><ul>${item.prompts.map((prompt) => `<li>${prompt}</li>`).join("")}</ul></div><div class="auditor-drawer-block"><strong>Why this matters</strong><p>${item.why}</p></div><div class="auditor-drawer-block"><strong>Example answer</strong><p>${item.example}</p></div><div class="auditor-drawer-block"><strong>Pacing note</strong><p>${pacingLine(item)}</p></div></div>` : ""}</div>`}<div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="back">Back</button><button class="button button-primary" type="button" data-action="next">Next</button></div></div>`; }
 function renderReflection(item) { return `<div class="full-audit-view ${fullAuditRenderMode === "step" ? "is-animated" : ""} full-audit-card full-audit-card-reflection">${renderProgressHeader(item)}<div class="full-audit-copy-block"><p class="section-kicker" style="margin-top: 0;">Reflection moment</p><h2 class="full-audit-title">${item.prompt}</h2><p class="full-audit-lead">${item.body}</p><p class="full-audit-note">Honesty matters more than perfection. A short, direct answer is enough.</p></div><div class="full-audit-input-wrap"><textarea class="full-audit-textarea full-audit-textarea-reflection" data-kind="reflection" data-reflection-id="${item.id}" placeholder="Optional. Write a few lines if something clear comes up.">${h(reflectionAnswer(item.id))}</textarea></div><div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="back">Back</button><button class="button button-primary" type="button" data-action="next">Continue</button></div></div>`; }
 function renderMilestone(item) { return `<div class="full-audit-view ${fullAuditRenderMode === "step" ? "is-animated" : ""} full-audit-card full-audit-card-milestone">${renderProgressHeader(item)}<div class="full-audit-copy-block"><p class="section-kicker" style="margin-top: 0;">Section complete</p><h2 class="full-audit-title">${item.title} is complete.</h2><p class="full-audit-lead">Keep moving. The point is not to answer perfectly. The point is to keep making the pattern more visible.</p><p class="full-audit-note">Next section: ${item.nextTitle}</p></div><div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="back">Back</button><button class="button button-primary" type="button" data-action="next">${item.nextTitle === "Results" ? "See results" : "Continue"}</button></div></div>`; }
-function renderResults() { const data = summary(); return `<div class="full-audit-view ${fullAuditRenderMode === "step" ? "is-animated" : ""} full-audit-card full-audit-card-results"><div class="full-audit-meta"><span>Full Results</span><span>${data.completion}% complete</span></div><div class="full-audit-copy-block"><h2 class="full-audit-title">Results scaffold</h2><p class="full-audit-lead">This screen is prepared for the fuller scoring engine. For now it uses the guided flow and stored answers to scaffold the final product shape.</p></div><div class="results-block"><h4>Category scores</h4><div class="results-grid">${data.categoryScores.map((item) => `<div class="result-tile"><span>${item.title}</span><strong>${item.score === null ? "Not yet assessed" : `${item.score}/10`}</strong></div>`).join("")}</div></div><div class="results-block"><h4>Strongest areas</h4><div class="results-list">${data.strongest.length ? data.strongest.map((item) => `<div class="result-line">${item.title} <strong>${item.score}/10</strong></div>`).join("") : `<div class="result-line">Complete more questions to surface strongest areas.</div>`}</div></div><div class="results-block"><h4>Weakest areas</h4><div class="results-list">${data.weakest.length ? data.weakest.map((item) => `<div class="result-line">${item.title} <strong>${item.score}/10</strong></div>`).join("") : `<div class="result-line">Complete more questions to surface weakest areas.</div>`}</div></div><div class="results-block"><h4>Friction points</h4><div class="results-list">${data.frictions.length ? data.frictions.map((item) => `<div class="result-line">${item}</div>`).join("") : `<div class="result-line">Friction points will appear once categories have enough material.</div>`}</div></div><div class="results-block"><h4>Root issue</h4><div class="result-focus">${data.rootIssue}</div></div><div class="results-block"><h4>Action plan</h4><div class="results-list">${data.actionPlan.map((item) => `<div class="result-line">${item}</div>`).join("")}</div></div><div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="restart">Start again</button><button class="button button-primary" type="button" data-action="review">Review session</button></div></div>`; }
+function renderResults() { const data = summary(); return `<div class="full-audit-view ${fullAuditRenderMode === "step" ? "is-animated" : ""} full-audit-card full-audit-card-results"><div class="full-audit-meta"><span>Full Results</span><span>${data.completion}% complete</span></div><div class="full-audit-copy-block"><h2 class="full-audit-title">Results scaffold</h2><p class="full-audit-lead">This screen is prepared for the fuller scoring engine. For now it uses the guided flow and stored answers to scaffold the final product shape.</p><p class="full-audit-note">If you need to manage this audit later, do that from the portal rather than from this screen.</p></div><div class="results-block"><h4>Category scores</h4><div class="results-grid">${data.categoryScores.map((item) => `<div class="result-tile"><span>${item.title}</span><strong>${item.score === null ? "Not yet assessed" : `${item.score}/10`}</strong></div>`).join("")}</div></div><div class="results-block"><h4>Strongest areas</h4><div class="results-list">${data.strongest.length ? data.strongest.map((item) => `<div class="result-line">${item.title} <strong>${item.score}/10</strong></div>`).join("") : `<div class="result-line">Complete more questions to surface strongest areas.</div>`}</div></div><div class="results-block"><h4>Weakest areas</h4><div class="results-list">${data.weakest.length ? data.weakest.map((item) => `<div class="result-line">${item.title} <strong>${item.score}/10</strong></div>`).join("") : `<div class="result-line">Complete more questions to surface weakest areas.</div>`}</div></div><div class="results-block"><h4>Friction points</h4><div class="results-list">${data.frictions.length ? data.frictions.map((item) => `<div class="result-line">${item}</div>`).join("") : `<div class="result-line">Friction points will appear once categories have enough material.</div>`}</div></div><div class="results-block"><h4>Root issue</h4><div class="result-focus">${data.rootIssue}</div></div><div class="results-block"><h4>Action plan</h4><div class="results-list">${data.actionPlan.map((item) => `<div class="result-line">${item}</div>`).join("")}</div></div><div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="portal">Back to portal</button><button class="button button-primary" type="button" data-action="review">Review session</button></div></div>`; }
 function renderSkippedReview() { const pending = pendingSkippedQuestions(); return `<div class="full-audit-view ${fullAuditRenderMode === "step" ? "is-animated" : ""} full-audit-card full-audit-card-milestone"><div class="full-audit-meta"><span>Full Life Audit</span><span>Skipped questions</span></div><div class="full-audit-copy-block"><p class="section-kicker" style="margin-top: 0;">Before results</p><h2 class="full-audit-title">A few questions still need an answer.</h2><p class="full-audit-lead">${pending.length === 1 ? "You skipped 1 question earlier." : `You skipped ${pending.length} questions earlier.`} We can come back to them now before the audit completes.</p><p class="full-audit-note">You do not need perfect answers. Just give each one something real.</p></div><div class="full-audit-footer"><button class="button button-secondary" type="button" data-action="back">Back</button><button class="button button-primary" type="button" data-action="review-skipped">Return to skipped questions</button></div></div>`; }
 function renderFullAudit() {
   syncAuditChrome();
@@ -1309,6 +1405,10 @@ function renderFullAudit() {
       syncAuditChrome();
       return;
     }
+    if (!fullAuditState.completedAt) {
+      fullAuditState.completedAt = new Date().toISOString();
+      saveState();
+    }
     fullAuditRoot.innerHTML = renderResults();
     syncAuditChrome();
     return;
@@ -1317,7 +1417,7 @@ function renderFullAudit() {
   fullAuditRoot.innerHTML = item.type === "section" ? renderSection(item) : item.type === "question" ? renderQuestion(item) : item.type === "milestone" ? renderMilestone(item) : renderReflection(item);
   syncAuditChrome();
 }
-function resetState() { const preservedUser = { ...fullAuditState.user }; fullAuditState.started = false; fullAuditState.currentIndex = 0; fullAuditState.answers = {}; fullAuditState.reflections = {}; fullAuditState.supportOpen = null; fullAuditState.depthPromptQuestionId = null; fullAuditState.depthPromptBypass = {}; fullAuditState.skipPromptQuestionId = null; fullAuditState.skippedQuestionIds = {}; fullAuditState.focusMode = false; fullAuditState.disclaimerChecked = false; fullAuditState.disclaimerAccepted = false; fullAuditState.user = preservedUser; clearVoiceState(); saveState(); renderAudit("step"); }
+function resetState() { const preservedUser = { ...fullAuditState.user }; const preservedRestartCount = fullAuditState.restartCount || 0; fullAuditState.started = false; fullAuditState.currentIndex = 0; fullAuditState.restartCount = preservedRestartCount; fullAuditState.completedAt = null; fullAuditState.answers = {}; fullAuditState.reflections = {}; fullAuditState.supportOpen = null; fullAuditState.depthPromptQuestionId = null; fullAuditState.depthPromptBypass = {}; fullAuditState.skipPromptQuestionId = null; fullAuditState.skippedQuestionIds = {}; fullAuditState.focusMode = false; fullAuditState.disclaimerChecked = false; fullAuditState.disclaimerAccepted = false; fullAuditState.user = preservedUser; clearVoiceState(); saveState(); renderAudit("step"); }
 
 if (fullAuditRoot) {
   fullAuditRoot.addEventListener("change", (event) => {
@@ -1353,6 +1453,10 @@ if (fullAuditMode) {
     const action = target.dataset.action;
     if (action === "exit-audit") {
       exitFullAudit();
+      return;
+    }
+    if (action === "portal") {
+      window.location.href = "./portal.html";
       return;
     }
     if (action === "start") {
@@ -1464,10 +1568,6 @@ if (fullAuditMode) {
       renderAudit("static");
       return;
     }
-    if (action === "restart") {
-      resetState();
-      return;
-    }
     if (action === "review") {
       clearVoiceState();
       fullAuditState.currentIndex = 0;
@@ -1502,12 +1602,14 @@ if (resumeOverlay) {
       resumeFullAudit();
       return;
     }
-    if (target.dataset.resumeAction === "restart") {
+    if (target.dataset.resumeAction === "cancel") {
       hideResumePrompt();
-      const preservedUser = { ...fullAuditState.user };
-      Object.assign(fullAuditState, defaultFullAuditState(), { user: preservedUser });
-      saveState();
-      startFreshFullAudit();
+      fullAuditEntryRequested = false;
+      return;
+    }
+    if (target.dataset.resumeAction === "portal") {
+      hideResumePrompt();
+      window.location.href = "./portal.html";
     }
   });
 }
@@ -1515,10 +1617,11 @@ if (resumeOverlay) {
 renderFullAudit();
 setAuditMode(false);
 hideResumePrompt();
+bootstrapCloudFullAuditState();
 
 document.querySelectorAll('a[data-start-full-audit="true"]').forEach((node) => {
   node.addEventListener("click", (event) => {
     event.preventDefault();
-    enterFullAudit();
+    void enterFullAudit();
   });
 });
