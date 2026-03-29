@@ -91,8 +91,8 @@ function renderPortal() {
         </header>
         <section class="portal-card">
           <div class="portal-head">
-            <p class="section-kicker">Portal</p>
-            <h1>Members area</h1>
+            <p class="section-kicker">Members access</p>
+            <h1>Members Access</h1>
             <p class="legal-lead">Private access to your Life Audit account and saved session.</p>
           </div>
 
