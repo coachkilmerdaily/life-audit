@@ -55,12 +55,35 @@ function emptyFullAuditState(user, restartCount = 0) {
   };
 }
 
+function fullAuditProgressSummary(fullState) {
+  if (!fullState) {
+    return { label: "Not started yet", percent: 0 };
+  }
+
+  const totalQuestions = Array.isArray(window.LIFE_AUDIT_FULL_STEPS)
+    ? window.LIFE_AUDIT_FULL_STEPS.reduce((sum, section) => sum + (Array.isArray(section.questions) ? section.questions.length : 0), 0)
+    : 0;
+  const answeredCount = Object.values(fullState.answers || {}).filter((value) => String(value || "").trim()).length;
+  const percent = totalQuestions ? Math.max(0, Math.min(100, Math.round((answeredCount / totalQuestions) * 100))) : 0;
+
+  if (fullState.completedAt) {
+    return { label: "Completed", percent: 100 };
+  }
+
+  if (answeredCount === 0) {
+    return { label: "Ready to begin", percent: 0 };
+  }
+
+  return { label: `${answeredCount} of ${totalQuestions} questions answered`, percent };
+}
+
 function renderPortal() {
   const configured = Boolean(window.lifeAuditCloud?.configured);
   const userName = portalState.user?.user_metadata?.full_name || portalState.user?.email || "Your account";
   const fullState = portalState.fullDraft?.state || null;
   const restartCount = fullState?.restartCount || 0;
   const canRestart = Boolean(portalState.user && fullState && !fullState.completedAt && restartCount < 1);
+  const progress = fullAuditProgressSummary(fullState);
   const inRecovery = portalState.mode === "update-password";
   const draftRows = portalState.drafts.length
     ? portalState.drafts
@@ -145,16 +168,20 @@ function renderPortal() {
                 ? `
                   <div class="portal-session">
                     <div class="portal-session-card portal-session-card-wide">
-                      <p class="section-kicker">Signed in</p>
+                      <p class="section-kicker">Full Life Audit</p>
                       <h2>${hp(userName)}</h2>
-                      <p>${hp(portalState.user.email || "")}</p>
+                      <p>${progress.label}</p>
+                      <div class="portal-progress">
+                        <div class="portal-progress-bar"><span style="width: ${progress.percent}%;"></span></div>
+                        <strong>${progress.percent}%</strong>
+                      </div>
                       <div class="portal-chip-row">
                         <span class="portal-chip">Secure sign-in</span>
                         <span class="portal-chip">Saved progress</span>
                         <span class="portal-chip">Private access</span>
                       </div>
                       <div class="portal-actions">
-                        <a class="button button-primary" href="./index.html">Open Life Audit</a>
+                        <a class="button button-primary" href="./index.html?fullaudit=1">${fullState ? "Continue Full Audit" : "Enter Full Audit"}</a>
                         <button class="button button-secondary" type="button" data-portal-action="signout">Sign out</button>
                       </div>
                     </div>

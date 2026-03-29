@@ -2953,6 +2953,41 @@ button {
   grid-column: 1 / -1;
 }
 
+.portal-progress {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.portal-progress strong {
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.portal-progress-bar {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.portal-progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(240, 231, 220, 0.65), rgba(240, 231, 220, 0.98));
+}
+
+.portal-page[data-theme="light"] .portal-progress-bar {
+  background: rgba(73, 63, 52, 0.08);
+}
+
+.portal-page[data-theme="light"] .portal-progress-bar span {
+  background: linear-gradient(90deg, rgba(42, 39, 35, 0.38), rgba(42, 39, 35, 0.78));
+}
+
 .portal-session-card-compact .portal-actions {
   margin-top: 14px;
 }

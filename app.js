@@ -2248,6 +2248,17 @@ setAuditMode(false);
 hideResumePrompt();
 bootstrapCloudFullAuditState();
 
+try {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("fullaudit") === "1") {
+    void enterFullAudit();
+    params.delete("fullaudit");
+    const nextSearch = params.toString();
+    const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash || ""}`;
+    window.history.replaceState({}, "", nextUrl);
+  }
+} catch {}
+
 document.querySelectorAll('a[data-start-full-audit="true"]').forEach((node) => {
   node.addEventListener("click", (event) => {
     event.preventDefault();
