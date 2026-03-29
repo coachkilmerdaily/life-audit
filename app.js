@@ -485,6 +485,17 @@ const fullAuditMode = document.querySelector("#full-audit-mode");
 const fullAuditRoot = document.querySelector("#full-audit-app");
 const auditDeveloperMode = (() => {
   try {
+    const hostname = window.location.hostname || "";
+    const protocol = window.location.protocol || "";
+    const isLocalEnvironment =
+      protocol === "file:" ||
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname.endsWith(".local");
+    if (!isLocalEnvironment) {
+      window.localStorage.removeItem("lifeAudit.auditDeveloperMode");
+      return false;
+    }
     const params = new URLSearchParams(window.location.search);
     if (params.get("auditdev") === "1") {
       window.localStorage.setItem("lifeAudit.auditDeveloperMode", "true");
