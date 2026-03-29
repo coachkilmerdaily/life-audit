@@ -2422,6 +2422,12 @@ button {
   line-height: 1.8;
 }
 
+.pricing-access-note {
+  margin: 16px 0 0;
+  color: rgba(243, 239, 232, 0.74);
+  line-height: 1.7;
+}
+
 .pricing-card .button {
   width: 100%;
   margin-top: 24px;
@@ -2687,6 +2693,43 @@ button {
   margin-bottom: 22px;
 }
 
+.portal-security-note {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 14px;
+  align-items: start;
+  margin-bottom: 20px;
+  padding: 16px 18px;
+  border: 1px solid rgba(243, 239, 232, 0.1);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.portal-security-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(243, 239, 232, 0.16);
+  border-radius: 999px;
+  color: rgba(243, 239, 232, 0.78);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.portal-security-note strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text);
+  font-size: 0.98rem;
+}
+
+.portal-security-note p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
 .portal-toggle {
   display: inline-flex;
   gap: 8px;
@@ -2779,6 +2822,13 @@ button {
   gap: 12px;
   flex-wrap: wrap;
   margin-top: 18px;
+}
+
+.portal-form-footnote {
+  margin: 14px 0 0;
+  color: rgba(243, 239, 232, 0.64);
+  line-height: 1.7;
+  font-size: 0.95rem;
 }
 
 .portal-inline-link {

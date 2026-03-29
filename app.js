@@ -284,7 +284,7 @@ if (Array.isArray(window.LIFE_AUDIT_FULL_STEPS) && window.LIFE_AUDIT_FULL_STEPS.
 
 const pricing = [
   { name: "Free Trial Audit", price: "$0", subtitle: "Opening insight", items: ["Initial life score", "First layer of insight", "Identify where things feel off"], cta: "Start free", featured: false },
-  { name: "Full Life Audit", price: "$199", subtitle: "Deeper clarity", items: ["Full breakdown across key areas", "Identify patterns and friction points", "Understand what is actually driving things", "Clear next steps and action plan"], cta: "Unlock Full Audit", featured: true, value: "One session. No ongoing coaching. Just clarity on what's actually going on and what to do next." },
+  { name: "Full Life Audit", price: "$199", subtitle: "Deeper clarity", items: ["Full breakdown across key areas", "Identify patterns and friction points", "Understand what is actually driving things", "Clear next steps and action plan"], cta: "Continue to Members Access", featured: true, value: "One session. No ongoing coaching. Just clarity on what's actually going on and what to do next.", accessNote: "Full Audit access is managed through Members Access. Sign in or create an account to continue." },
 ];
 
 const faqs = [
@@ -373,7 +373,7 @@ function renderSite() {
           <a class="brand" href="#top"><span class="brand-mark" aria-hidden="true"></span><span>LIFE AUDIT</span></a>
           <nav class="topbar-links" aria-label="Primary">
             <a href="#mini-audit">Free Trial Audit</a>
-            <a href="#audit" data-start-full-audit="true">Unlock Full Audit</a>
+            <a href="#pricing">Unlock Full Audit</a>
             <a href="./portal.html">Members Access</a>
             <a href="#pricing">Pricing</a>
             <a href="#faq">FAQ</a>
@@ -387,7 +387,7 @@ function renderSite() {
             <p class="hero-support">So you can see clearly what is working, what is not, and what needs to change.</p>
             <div class="hero-actions">
               <a class="button button-primary" href="#mini-audit">Start your free trial audit</a>
-              <a class="button button-secondary" href="#audit" data-start-full-audit="true">Unlock Full Audit</a>
+              <a class="button button-secondary" href="#pricing">Unlock Full Audit</a>
             </div>
             <div class="hero-tags">${tagItems.map((tag) => `<span class="pill">${tag}</span>`).join("")}</div>
           </div>
@@ -420,7 +420,7 @@ function renderSite() {
                 <div class="audit-meta-row"><span>Next step</span><strong id="mini-audit-next-step">Reduce one source of drag and make one cleaner decision.</strong></div>
               </div>
               <div class="audit-upgrade"><p id="mini-audit-upgrade">The full Life Audit goes deeper into identity, health, relationships, discipline, clarity, direction, and hidden friction.</p></div>
-              <a class="button button-secondary" href="#audit" data-start-full-audit="true">Unlock Full Audit</a>
+              <a class="button button-secondary" href="#pricing">Unlock Full Audit</a>
             </div>
           </div>
         </div>
@@ -458,7 +458,7 @@ function renderSite() {
       </div>
     </section>
     <section class="section" id="flow"><div class="container"><div class="section-heading reveal"><p class="section-kicker">What happens</p><h2>A clear path from first insight to next steps.</h2><p>Move from an opening diagnosis of where life stands to a clearer understanding of what needs attention.</p></div><div class="journey-visual reveal"><div class="journey-track">${steps.map((item) => `<article class="journey-node"><span>${item.step}</span><strong>${item.title}</strong><p>${item.body}</p></article>`).join("")}</div><div class="journey-outcome"><p class="journey-label">End result</p><h3>Clarity on what is working, what is draining you, and what to do next.</h3><div class="journey-outcome-points"><span>Clearer direction</span><span>Visible friction points</span><span>A practical next step</span></div></div></div></div></section>
-    <section class="section" id="pricing"><div class="container"><div class="section-heading reveal"><p class="section-kicker">Pricing</p><h2>One clear step from surface-level answers to real clarity</h2><p>Start with an initial insight. If it resonates, go deeper.</p></div><div class="pricing-grid">${pricing.map((tier) => `<article class="pricing-card reveal ${tier.featured ? "featured" : ""}"><div class="price-row"><div><p class="price-tagline">${tier.subtitle}</p><h3>${tier.name}</h3></div><div class="price-value">${tier.price}</div></div><div class="pricing-list">${tier.items.map((item) => `<div class="pricing-item">${item}</div>`).join("")}</div>${tier.value ? `<p class="pricing-value">${tier.value}</p>` : ""}<a class="button ${tier.featured ? "" : "button-primary"}" href="${tier.featured ? "#audit" : "#mini-audit"}"${tier.featured ? ' data-start-full-audit="true"' : ""}>${tier.cta}</a></article>`).join("")}</div><p class="pricing-trust reveal">Built for people who want answers, not endless sessions.</p></div></section>
+    <section class="section" id="pricing"><div class="container"><div class="section-heading reveal"><p class="section-kicker">Pricing</p><h2>One clear step from surface-level answers to real clarity</h2><p>Start with an initial insight. If it resonates, go deeper.</p></div><div class="pricing-grid">${pricing.map((tier) => `<article class="pricing-card reveal ${tier.featured ? "featured" : ""}"><div class="price-row"><div><p class="price-tagline">${tier.subtitle}</p><h3>${tier.name}</h3></div><div class="price-value">${tier.price}</div></div><div class="pricing-list">${tier.items.map((item) => `<div class="pricing-item">${item}</div>`).join("")}</div>${tier.value ? `<p class="pricing-value">${tier.value}</p>` : ""}${tier.accessNote ? `<p class="pricing-access-note">${tier.accessNote}</p>` : ""}<a class="button ${tier.featured ? "" : "button-primary"}" href="${tier.featured ? "./portal.html" : "#mini-audit"}">${tier.cta}</a></article>`).join("")}</div><p class="pricing-trust reveal">Built for people who want answers, not endless sessions.</p></div></section>
     <section class="section section-muted" id="faq"><div class="container"><div class="faq-layout"><div class="faq-copy reveal"><p class="section-kicker">FAQ</p><h2>Questions you may have before you start.</h2><p>Everything you need to know before taking the audit.</p></div><div class="faq-list">${faqs.map((item, index) => `<details class="faq-item reveal" ${index === 0 ? "open" : ""}><summary><span>${item.q}</span><span class="faq-toggle" aria-hidden="true"></span></summary><div class="faq-answer"><p>${item.a}</p></div></details>`).join("")}</div></div></div></section>
     <footer class="footer"><div class="container"><div class="footer-row reveal"><div class="brand"><span class="brand-mark" aria-hidden="true"></span><span>LIFE AUDIT</span></div><div class="footer-links"><a class="footer-link" href="./portal.html">Members Access</a><a class="footer-link" href="./privacy.html">Privacy Policy</a><a class="footer-link" href="./terms.html">Terms &amp; Disclaimer</a><a class="footer-cta" href="#top">Back to top</a></div></div></div></footer>
   </div>

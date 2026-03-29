@@ -81,6 +81,10 @@ function renderPortal() {
       : portalState.mode === "reset"
         ? "A reset link will be sent to your email so you can choose a new password securely."
         : "Secure access to your saved audit session.";
+  const securityNote =
+    portalState.mode === "reset"
+      ? "Password reset is handled through a secure recovery link sent to your email."
+      : "Your sign-in is handled through a secure account session. Personal audit data stays attached to your account.";
 
   portalApp.innerHTML = `
     <div class="portal-page">
@@ -167,6 +171,13 @@ function renderPortal() {
                         <h2>${authTitle}</h2>
                         <p>${authNote}</p>
                       </div>
+                      <div class="portal-security-note">
+                        <div class="portal-security-icon" aria-hidden="true">+</div>
+                        <div>
+                          <strong>Secure account access</strong>
+                          <p>${securityNote}</p>
+                        </div>
+                      </div>
                       <div class="portal-toggle">
                         <button class="portal-toggle-button ${portalState.mode === "signin" ? "is-active" : ""}" type="button" data-portal-mode="signin">Sign in</button>
                         <button class="portal-toggle-button ${portalState.mode === "signup" ? "is-active" : ""}" type="button" data-portal-mode="signup">Create account</button>
@@ -194,6 +205,7 @@ function renderPortal() {
                           }</button>
                           <a class="button button-secondary" href="./index.html">Back</a>
                         </div>
+                        <p class="portal-form-footnote">Secure server connection. Your audit session is tied to your account, not shared publicly.</p>
                         ${
                           portalState.mode === "signin"
                             ? `<button class="portal-inline-link" type="button" data-portal-mode="reset">Forgot password?</button>`
