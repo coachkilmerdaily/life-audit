@@ -17,6 +17,13 @@ const portalState = {
   message: "",
   error: "",
   loading: true,
+  theme: (() => {
+    try {
+      return window.localStorage.getItem("lifeAudit.portalTheme") || "dark";
+    } catch {
+      return "dark";
+    }
+  })(),
 };
 
 function isRecoveryFlow() {
@@ -87,11 +94,17 @@ function renderPortal() {
       : "Your sign-in is handled through a secure account session. Personal audit data stays attached to your account.";
 
   portalApp.innerHTML = `
-    <div class="portal-page">
+    <div class="portal-page" data-theme="${portalState.theme}">
       <div class="legal-shell">
         <header class="legal-header">
           <a class="brand" href="./index.html"><span class="brand-mark" aria-hidden="true"></span><span>LIFE AUDIT</span></a>
-          <a class="legal-back" href="./index.html">Back to site</a>
+          <div class="portal-header-actions">
+            <div class="portal-theme-toggle" aria-label="Portal appearance">
+              <button class="portal-theme-button ${portalState.theme === "dark" ? "is-active" : ""}" type="button" data-portal-theme="dark">Dark</button>
+              <button class="portal-theme-button ${portalState.theme === "light" ? "is-active" : ""}" type="button" data-portal-theme="light">Light</button>
+            </div>
+            <a class="legal-back" href="./index.html">Back to site</a>
+          </div>
         </header>
         <section class="portal-card">
           <div class="portal-head">
@@ -146,6 +159,16 @@ function renderPortal() {
                       <div class="portal-drafts">${draftRows}</div>
                     </div>
                     <div class="portal-session-card">
+                      <p class="section-kicker">Member space</p>
+                      <h2>Private and secure</h2>
+                      <p>Your saved audit progress is attached to your account and available when you return. This area is designed to keep your access simple, calm, and contained.</p>
+                      <div class="portal-chip-row">
+                        <span class="portal-chip">Secure sign-in</span>
+                        <span class="portal-chip">Saved progress</span>
+                        <span class="portal-chip">Private access</span>
+                      </div>
+                    </div>
+                    <div class="portal-session-card">
                       <p class="section-kicker">Audit settings</p>
                       <h2>Manage your Full Audit</h2>
                       <p>${
@@ -159,6 +182,24 @@ function renderPortal() {
                       }</p>
                       <div class="portal-actions">
                         <button class="button button-secondary" type="button" data-portal-action="restart-audit" ${canRestart ? "" : "disabled"}>Start again</button>
+                      </div>
+                    </div>
+                    <div class="portal-session-card">
+                      <p class="section-kicker">Preferences</p>
+                      <h2>Appearance</h2>
+                      <p>Choose the portal view that feels calmer and easier to use.</p>
+                      <div class="portal-theme-toggle">
+                        <button class="portal-theme-button ${portalState.theme === "dark" ? "is-active" : ""}" type="button" data-portal-theme="dark">Dark mode</button>
+                        <button class="portal-theme-button ${portalState.theme === "light" ? "is-active" : ""}" type="button" data-portal-theme="light">Light mode</button>
+                      </div>
+                    </div>
+                    <div class="portal-session-card">
+                      <p class="section-kicker">Policies</p>
+                      <h2>Privacy and terms</h2>
+                      <p>Review how your information is handled and the current product terms.</p>
+                      <div class="portal-actions">
+                        <a class="button button-secondary" href="./privacy.html">Privacy Policy</a>
+                        <a class="button button-secondary" href="./terms.html">Terms &amp; Disclaimer</a>
                       </div>
                     </div>
                   </div>
@@ -252,6 +293,16 @@ async function refreshPortalSession() {
 }
 
 portalApp?.addEventListener("click", async (event) => {
+  const themeButton = event.target.closest("[data-portal-theme]");
+  if (themeButton) {
+    portalState.theme = themeButton.dataset.portalTheme === "light" ? "light" : "dark";
+    try {
+      window.localStorage.setItem("lifeAudit.portalTheme", portalState.theme);
+    } catch {}
+    renderPortal();
+    return;
+  }
+
   const modeButton = event.target.closest("[data-portal-mode]");
   if (modeButton) {
     portalState.mode = modeButton.dataset.portalMode;
